@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "fxlayers"
+  site-url: "https://Jorgvt.github.io/fxlayers"
+  description: "JaX/Flax implementation of functional layers."
+  repo-branch: main
+  repo-url: "https://github.com/Jorgvt/fxlayers"
