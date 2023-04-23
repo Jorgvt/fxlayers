@@ -165,6 +165,6 @@ class GaborLayer(nn.Module):
     def return_kernel(self, params):
         x, y = jnp.meshgrid(jnp.linspace(0,1,num=self.kernel_size), jnp.linspace(0,1,num=self.kernel_size))
         sigmax, sigmay = jnp.exp(params["logsigmax"]), jnp.exp(params["logsigmay"])
-        kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None))(x, y, self.xmean, self.ymean, sigmax, sigmay, params["freq"], params["theta"], params["sigma_theta"], params["rot_theta"], 1, self.normalize_prob)
+        kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None), out_axes=-1)(x, y, self.xmean, self.ymean, sigmax, sigmay, params["freq"], params["theta"], params["sigma_theta"], params["rot_theta"], 1, self.normalize_prob)
         kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
         return kernel
