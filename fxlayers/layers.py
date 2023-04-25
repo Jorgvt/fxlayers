@@ -102,19 +102,19 @@ class GaborLayer(nn.Module):
                            nn.initializers.uniform(scale=self.fs/2),
                            (self.features*inputs.shape[-1],))
         logsigmax = self.param("logsigmax",
-                           nn.initializers.uniform(scale=1),
+                           nn.initializers.uniform(scale=jnp.log(2/freq)),
                            (self.features*inputs.shape[-1],))
         logsigmay = self.param("logsigmay",
-                           nn.initializers.uniform(scale=1),
+                           nn.initializers.uniform(scale=jnp.log(2/freq)),
                            (self.features*inputs.shape[-1],))
         theta = self.param("theta",
-                           nn.initializers.uniform(scale=1),
+                           nn.initializers.uniform(scale=jnp.pi),
                            (self.features*inputs.shape[-1],))
         sigma_theta = self.param("sigma_theta",
-                           nn.initializers.uniform(scale=1),
+                           nn.initializers.uniform(scale=jnp.pi),
                            (self.features*inputs.shape[-1],))
         rot_theta = self.param("rot_theta",
-                           nn.initializers.uniform(scale=1),
+                           nn.initializers.uniform(scale=jnp.pi),
                            (self.features*inputs.shape[-1],))
         sigmax, sigmay = jnp.exp(logsigmax), jnp.exp(logsigmay)
 
@@ -164,9 +164,9 @@ class GaborLayer(nn.Module):
 
         return A*A_norm*jnp.exp(-distance/2) * jnp.cos(2*jnp.pi*freq*(x*jnp.cos(theta)+y*jnp.sin(theta)))
 
-    def return_kernel(self, params):
+    def return_kernel(self, params, input_channels=3):
         x, y = jnp.meshgrid(jnp.linspace(0,1,num=self.kernel_size), jnp.linspace(0,1,num=self.kernel_size))
         sigmax, sigmay = jnp.exp(params["logsigmax"]), jnp.exp(params["logsigmay"])
         kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None), out_axes=-1)(x, y, self.xmean, self.ymean, sigmax, sigmay, params["freq"], params["theta"], params["sigma_theta"], params["rot_theta"], 1, self.normalize_prob)
-        kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
+        kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, input_channels, self.features))
         return kernel
