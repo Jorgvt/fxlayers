@@ -62,7 +62,8 @@ class GaussianLayer(nn.Module):
 
     @staticmethod
     def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
-        A_norm = 1/(2*jnp.pi*sigma) if normalize_prob else 1.
+        # A_norm = 1/(2*jnp.pi*sigma) if normalize_prob else 1.
+        A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*sigma), 1.)
         return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
 
     def return_kernel(self, params):
@@ -150,7 +151,8 @@ class GaborLayer(nn.Module):
         sigma_vector = jnp.array([sigmax, sigmay])
         cov_matrix = jnp.diag(sigma_vector)**2
         det_cov_matrix = jnp.linalg.det(cov_matrix)
-        A_norm = 1/(2*jnp.pi*jnp.sqrt(det_cov_matrix)) if normalize_prob else 1.
+        # A_norm = 1/(2*jnp.pi*jnp.sqrt(det_cov_matrix)) if normalize_prob else 1.
+        A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*jnp.sqrt(det_cov_matrix)), 1.)
         
         ## Rotate the sinusoid
         rotation_matrix = jnp.array([[jnp.cos(sigma_theta), -jnp.sin(sigma_theta)],
