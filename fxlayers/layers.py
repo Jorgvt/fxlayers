@@ -10,6 +10,7 @@ from jax import lax, random, numpy as jnp
 from flax.core import freeze, unfreeze
 from flax import linen as nn
 import optax
+from einops import rearrange
 
 # %% ../Notebooks/00_layers.ipynb 6
 class GaussianLayer(nn.Module):
@@ -121,10 +122,12 @@ class GaborLayer(nn.Module):
         if is_initialized and not train: 
             kernel = precalc_filters.value
         elif is_initialized and train: 
-            x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size,num=self.kernel_size))
+            x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
             # gabor_fn = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None))
             kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None))(x, y, self.xmean, self.ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, 1, self.normalize_prob)
-            kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
+            jax.debug.print(str(kernel.shape))
+            kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
+            # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             precalc_filters.value = kernel
         else:
             kernel = precalc_filters.value
@@ -165,7 +168,7 @@ class GaborLayer(nn.Module):
         return A*A_norm*jnp.exp(-distance/2) * jnp.cos(2*jnp.pi*freq*(x*jnp.cos(theta)+y*jnp.sin(theta)))
 
     def return_kernel(self, params, input_channels=3):
-        x, y = jnp.meshgrid(jnp.linspace(0,1,num=self.kernel_size), jnp.linspace(0,1,num=self.kernel_size))
+        x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
         sigmax, sigmay = jnp.exp(params["logsigmax"]), jnp.exp(params["logsigmay"])
         kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None), out_axes=-1)(x, y, self.xmean, self.ymean, sigmax, sigmay, params["freq"], params["theta"], params["sigma_theta"], params["rot_theta"], 1, self.normalize_prob)
         kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, input_channels, self.features))
