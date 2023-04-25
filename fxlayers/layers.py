@@ -125,7 +125,6 @@ class GaborLayer(nn.Module):
             x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
             # gabor_fn = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None))
             kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None))(x, y, self.xmean, self.ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, 1, self.normalize_prob)
-            jax.debug.print(str(kernel.shape))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             precalc_filters.value = kernel
