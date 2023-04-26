@@ -24,6 +24,7 @@ class GaussianLayer(nn.Module):
     bias_init: Callable = nn.initializers.zeros_init()
     xmean: float = 0.5
     ymean: float = 0.5
+    fs: float = 1 # Sampling frequency
     normalize_prob: bool = True
 
     @nn.compact
@@ -42,9 +43,10 @@ class GaussianLayer(nn.Module):
         if is_initialized and not train: 
             kernel = precalc_filters.value
         elif is_initialized and train: 
-            x, y = jnp.meshgrid(jnp.linspace(0,1,num=self.kernel_size), jnp.linspace(0,1,num=self.kernel_size))
-            kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,None,None), out_axes=-1)(x, y, self.xmean, self.ymean, sigma, 1, self.normalize_prob)
-            kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
+            x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+            kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, 1, self.normalize_prob)
+            # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
+            kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
             precalc_filters.value = kernel
         else:
             kernel = precalc_filters.value
@@ -122,9 +124,9 @@ class GaborLayer(nn.Module):
         if is_initialized and not train: 
             kernel = precalc_filters.value
         elif is_initialized and train: 
-            x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
+            x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
             # gabor_fn = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None))
-            kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None))(x, y, self.xmean, self.ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, 1, self.normalize_prob)
+            kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, 1, self.normalize_prob)
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             precalc_filters.value = kernel
