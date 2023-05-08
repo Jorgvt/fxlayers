@@ -114,19 +114,12 @@ class GaborLayer(nn.Module):
         freq = self.param("freq",
                            nn.initializers.uniform(scale=self.fs/2),
                            (self.features*inputs.shape[-1],))
-        # logsigmax = self.param("logsigmax",
-        #                    bounded_uniform(minval=-4., maxval=-0.5),
-        #                    (self.features*inputs.shape[-1],))
-        # logsigmay = self.param("logsigmay",
-        #                    bounded_uniform(minval=-4., maxval=-0.5),
-        #                    (self.features*inputs.shape[-1],))
-        sigmax = self.param("sigmax",
-                           nn.initializers.uniform(scale=self.xmean),
+        logsigmax = self.param("logsigmax",
+                           bounded_uniform(minval=-4., maxval=-0.5),
                            (self.features*inputs.shape[-1],))
-        sigmay = self.param("sigmay",
-                           nn.initializers.uniform(scale=self.ymean),
-                           (self.features*inputs.shape[-1],))
-        
+        logsigmay = self.param("logsigmay",
+                           bounded_uniform(minval=-4., maxval=-0.5),
+                           (self.features*inputs.shape[-1],))        
         theta = self.param("theta",
                            nn.initializers.uniform(scale=jnp.pi),
                            (self.features*inputs.shape[-1],))
@@ -139,7 +132,7 @@ class GaborLayer(nn.Module):
         A = self.param("A",
                        nn.initializers.ones,
                        (self.features*inputs.shape[-1],))
-        # sigmax, sigmay = jnp.exp(logsigmax), jnp.exp(logsigmay)
+        sigmax, sigmay = jnp.exp(logsigmax), jnp.exp(logsigmay)
 
         if is_initialized and not train: 
             kernel = precalc_filters.value
@@ -190,8 +183,8 @@ class GaborLayer(nn.Module):
 
     def return_kernel(self, params, c_in=3):
         x, y = self.generate_dominion()
-        # sigmax, sigmay = jnp.exp(params["logsigmax"]), jnp.exp(params["logsigmay"])
-        sigmax, sigmay = jnp.exp(params["sigmax"]), jnp.exp(params["sigmay"])
+        sigmax, sigmay = jnp.exp(params["logsigmax"]), jnp.exp(params["logsigmay"])
+        # sigmax, sigmay = jnp.exp(params["sigmax"]), jnp.exp(params["sigmay"])
         kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, params["freq"], params["theta"], params["sigma_theta"], params["rot_theta"], params["A"], self.normalize_prob)
         # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, input_channels, self.features))
         kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
