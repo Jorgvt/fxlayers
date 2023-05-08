@@ -12,5 +12,7 @@ d = { 'settings': { 'branch': 'main',
                                  'fxlayers.layers.GaussianLayer': ('layers.html#gaussianlayer', 'fxlayers/layers.py'),
                                  'fxlayers.layers.GaussianLayer.__call__': ('layers.html#gaussianlayer.__call__', 'fxlayers/layers.py'),
                                  'fxlayers.layers.GaussianLayer.gaussian': ('layers.html#gaussianlayer.gaussian', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.GaussianLayer.generate_dominion': ( 'layers.html#gaussianlayer.generate_dominion',
+                                                                                      'fxlayers/layers.py'),
                                  'fxlayers.layers.GaussianLayer.return_kernel': ( 'layers.html#gaussianlayer.return_kernel',
                                                                                   'fxlayers/layers.py')}}}

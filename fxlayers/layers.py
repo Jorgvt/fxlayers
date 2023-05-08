@@ -38,7 +38,7 @@ class GaussianLayer(nn.Module):
                                         jnp.zeros,
                                         (self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
         sigma = self.param("sigma",
-                           nn.initializers.uniform(scale=1),
+                           nn.initializers.uniform(scale=self.xmean),
                            (self.features*inputs.shape[-1],))
         A = self.param("A",
                        nn.initializers.ones,
@@ -47,7 +47,7 @@ class GaussianLayer(nn.Module):
         if is_initialized and not train: 
             kernel = precalc_filters.value
         elif is_initialized and train: 
-            x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+            x, y = self.generate_dominion()
             kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, A, self.normalize_prob)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
@@ -73,13 +73,17 @@ class GaussianLayer(nn.Module):
         A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*sigma), 1.)
         return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
 
-    def return_kernel(self, params):
-        x, y = jnp.meshgrid(jnp.linspace(0,1,num=self.kernel_size), jnp.linspace(0,1,num=self.kernel_size))
-        kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None), out_axes=-1)(x, y, self.xmean, self.ymean, params["params"]["sigma"], params["params"]["A"], self.normalize_prob)
-        kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
+    def return_kernel(self, params, c_in):
+        x, y = self.generate_dominion()
+        kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, params["params"]["sigma"], params["params"]["A"], self.normalize_prob)
+        # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
+        kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
         return kernel
+    
+    def generate_dominion(self):
+        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
 
-# %% ../Notebooks/00_layers.ipynb 17
+# %% ../Notebooks/00_layers.ipynb 18
 class GaborLayer(nn.Module):
     """Parametric Gabor layer."""
     features: int
