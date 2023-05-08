@@ -12,6 +12,8 @@ from flax import linen as nn
 import optax
 from einops import rearrange
 
+from .initializers import bounded_uniform
+
 # %% ../Notebooks/00_layers.ipynb 6
 class GaussianLayer(nn.Module):
     """Parametric gaussian layer."""
@@ -112,12 +114,19 @@ class GaborLayer(nn.Module):
         freq = self.param("freq",
                            nn.initializers.uniform(scale=self.fs/2),
                            (self.features*inputs.shape[-1],))
-        logsigmax = self.param("logsigmax",
-                           nn.initializers.uniform(scale=jnp.log(2/freq)),
+        # logsigmax = self.param("logsigmax",
+        #                    bounded_uniform(minval=-4., maxval=-0.5),
+        #                    (self.features*inputs.shape[-1],))
+        # logsigmay = self.param("logsigmay",
+        #                    bounded_uniform(minval=-4., maxval=-0.5),
+        #                    (self.features*inputs.shape[-1],))
+        sigmax = self.param("sigmax",
+                           nn.initializers.uniform(scale=self.xmean),
                            (self.features*inputs.shape[-1],))
-        logsigmay = self.param("logsigmay",
-                           nn.initializers.uniform(scale=jnp.log(2/freq)),
+        sigmay = self.param("sigmay",
+                           nn.initializers.uniform(scale=self.ymean),
                            (self.features*inputs.shape[-1],))
+        
         theta = self.param("theta",
                            nn.initializers.uniform(scale=jnp.pi),
                            (self.features*inputs.shape[-1],))
@@ -130,12 +139,12 @@ class GaborLayer(nn.Module):
         A = self.param("A",
                        nn.initializers.ones,
                        (self.features*inputs.shape[-1],))
-        sigmax, sigmay = jnp.exp(logsigmax), jnp.exp(logsigmay)
+        # sigmax, sigmay = jnp.exp(logsigmax), jnp.exp(logsigmay)
 
         if is_initialized and not train: 
             kernel = precalc_filters.value
         elif is_initialized and train: 
-            x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+            x, y = self.generate_dominion()
             # gabor_fn = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None))
             kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, A, self.normalize_prob)
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
@@ -179,9 +188,14 @@ class GaborLayer(nn.Module):
 
         return A*A_norm*jnp.exp(-distance/2) * jnp.cos(2*jnp.pi*freq*(x*jnp.cos(theta)+y*jnp.sin(theta)))
 
-    def return_kernel(self, params, input_channels=3):
-        x, y = jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
-        sigmax, sigmay = jnp.exp(params["logsigmax"]), jnp.exp(params["logsigmay"])
-        kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,0,None), out_axes=-1)(x, y, self.xmean, self.ymean, sigmax, sigmay, params["freq"], params["theta"], params["sigma_theta"], params["rot_theta"], params["A"], self.normalize_prob)
-        kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, input_channels, self.features))
+    def return_kernel(self, params, c_in=3):
+        x, y = self.generate_dominion()
+        # sigmax, sigmay = jnp.exp(params["logsigmax"]), jnp.exp(params["logsigmay"])
+        sigmax, sigmay = jnp.exp(params["sigmax"]), jnp.exp(params["sigmay"])
+        kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, params["freq"], params["theta"], params["sigma_theta"], params["rot_theta"], params["A"], self.normalize_prob)
+        # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, input_channels, self.features))
+        kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
         return kernel
+    
+    def generate_dominion(self):
+        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
