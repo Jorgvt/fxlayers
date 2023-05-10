@@ -85,7 +85,79 @@ class GaussianLayer(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
 
-# %% ../Notebooks/00_layers.ipynb 18
+# %% ../Notebooks/00_layers.ipynb 7
+class GaussianLayerLogSigma(nn.Module):
+    """Parametric gaussian layer that optimizes log(sigma) instead of sigma."""
+    features: int
+    kernel_size: Union[int, Sequence[int]]
+    strides: int = 1
+    padding: str = "SAME"
+    feature_group_count: int = 1
+    kernel_init: Callable = nn.initializers.lecun_normal()
+    bias_init: Callable = nn.initializers.zeros_init()
+    xmean: float = 0.5
+    ymean: float = 0.5
+    fs: float = 1 # Sampling frequency
+    normalize_prob: bool = True
+
+    @nn.compact
+    def __call__(self,
+                 inputs,
+                 train=False,
+                 ):
+        is_initialized = self.has_variable("precalc_filter", "kernel")
+        precalc_filters = self.variable("precalc_filter",
+                                        "kernel",
+                                        jnp.zeros,
+                                        (self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
+        logsigma = self.param("logsigma",
+                           bounded_uniform(minval=-4., maxval=-0.5),
+                           (self.features*inputs.shape[-1],))
+        A = self.param("A",
+                       nn.initializers.ones,
+                       (self.features*inputs.shape[-1],))
+        sigma = jnp.exp(logsigma)
+
+        if is_initialized and not train: 
+            kernel = precalc_filters.value
+        elif is_initialized and train: 
+            x, y = self.generate_dominion()
+            kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, A, self.normalize_prob)
+            # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
+            kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
+            precalc_filters.value = kernel
+        else:
+            kernel = precalc_filters.value
+
+        ## Add the batch dim if the input is a single element
+        if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
+        else: had_batch = True
+        outputs = lax.conv(jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
+               jnp.transpose(kernel,[3,2,0,1]), # rhs = OIHW conv kernel tensor
+               (self.strides, self.strides),
+               self.padding)
+        ## Move the channels back to the last dim
+        outputs = jnp.transpose(outputs, (0,2,3,1))
+        if not had_batch: outputs = outputs[0]
+        return outputs
+
+    @staticmethod
+    def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
+        # A_norm = 1/(2*jnp.pi*sigma) if normalize_prob else 1.
+        A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*sigma), 1.)
+        return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
+
+    def return_kernel(self, params, c_in):
+        x, y = self.generate_dominion()
+        kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, jnp.exp(params["params"]["logsigma"]), params["params"]["A"], self.normalize_prob)
+        # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
+        kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
+        return kernel
+    
+    def generate_dominion(self):
+        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+
+# %% ../Notebooks/00_layers.ipynb 19
 class GaborLayer(nn.Module):
     """Parametric Gabor layer."""
     features: int
