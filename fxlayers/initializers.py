@@ -22,7 +22,7 @@ def bounded_uniform(minval=0.0,
 # %% ../Notebooks/01_initializers.ipynb 8
 def displaced_normal(mean=0., # Mean of the distribution.
                      stddev=1e-2, # Standard deviation of the distribution.
-                     dtype=jnp.float_ # Desired DType of the resulting array.
+                     dtype=dtypes.float_ # Desired DType of the resulting array.
                      ):
   """Builds an initializer that returns real normally-distributed random arrays."""
 
