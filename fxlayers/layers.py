@@ -28,6 +28,7 @@ class GaussianLayer(nn.Module):
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
     normalize_prob: bool = True
+    normalize_energy: bool = False
 
     @nn.compact
     def __call__(self,
@@ -50,7 +51,7 @@ class GaussianLayer(nn.Module):
             kernel = precalc_filters.value
         elif is_initialized and train: 
             x, y = self.generate_dominion()
-            kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, A, self.normalize_prob)
+            kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, A, self.normalize_prob, self.normalize_energy)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
             precalc_filters.value = kernel
@@ -70,10 +71,12 @@ class GaussianLayer(nn.Module):
         return outputs
 
     @staticmethod
-    def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
+    def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True, normalize_energy=False):
         # A_norm = 1/(2*jnp.pi*sigma) if normalize_prob else 1.
         A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*sigma**2), 1.)
-        return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
+        gaussian = A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
+        E_norm = jnp.where(normalize_energy, jnp.sqrt(jnp.sum(gaussian**2)), 1.)
+        return A*gaussian/E_norm
 
     def return_kernel(self, params, c_in):
         x, y = self.generate_dominion()
@@ -99,6 +102,7 @@ class GaussianLayerLogSigma(nn.Module):
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
     normalize_prob: bool = True
+    normalize_energy: bool = False
 
     @nn.compact
     def __call__(self,
@@ -122,7 +126,7 @@ class GaussianLayerLogSigma(nn.Module):
             kernel = precalc_filters.value
         elif is_initialized and train: 
             x, y = self.generate_dominion()
-            kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, A, self.normalize_prob)
+            kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, A, self.normalize_prob, self.normalize_energy)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
             precalc_filters.value = kernel
@@ -142,10 +146,12 @@ class GaussianLayerLogSigma(nn.Module):
         return outputs
 
     @staticmethod
-    def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
+    def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True, normalize_energy=False):
         # A_norm = 1/(2*jnp.pi*sigma) if normalize_prob else 1.
         A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*sigma**2), 1.)
-        return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
+        g = A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
+        E_norm = jnp.where(normalize_energy, jnp.sqrt(jnp.sum(g**2)), 1.)
+        return A*g/E_norm
 
     def return_kernel(self, params, c_in):
         x, y = self.generate_dominion()
@@ -172,6 +178,7 @@ class GaborLayer(nn.Module):
     fs: float = 1 # Sampling frequency
 
     normalize_prob: bool = True
+    normalize_energy: bool = False
 
     @nn.compact
     def __call__(self,
@@ -211,7 +218,7 @@ class GaborLayer(nn.Module):
         elif is_initialized and train: 
             x, y = self.generate_dominion()
             # gabor_fn = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,None,None))
-            kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, A, self.normalize_prob)
+            kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, A, self.normalize_prob, self.normalize_energy)
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             precalc_filters.value = kernel
@@ -231,7 +238,7 @@ class GaborLayer(nn.Module):
         return outputs
 
     @staticmethod
-    def gabor(x, y, xmean, ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, A=1, normalize_prob=True):
+    def gabor(x, y, xmean, ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, A=1, normalize_prob=True, normalize_energy=False):
         # ## Rotate the dominion
         # x = jnp.cos(rot_theta) * (x - xmean) - jnp.sin(rot_theta) * (y - ymean)
         # y = jnp.sin(rot_theta) * (x - xmean) + jnp.cos(rot_theta) * (y - ymean)
@@ -250,8 +257,9 @@ class GaborLayer(nn.Module):
         x_r_1 = rotated_covariance[0,0] * x + rotated_covariance[0,1] * y
         y_r_1 = rotated_covariance[1,0] * x + rotated_covariance[1,1] * y
         distance = x * x_r_1 + y * y_r_1
-
-        return A*A_norm*jnp.exp(-distance/2) * jnp.cos(2*jnp.pi*freq*(x*jnp.cos(theta)+y*jnp.sin(theta)))
+        g = A_norm*jnp.exp(-distance/2) * jnp.cos(2*jnp.pi*freq*(x*jnp.cos(theta)+y*jnp.sin(theta)))
+        E_norm = jnp.where(normalize_energy, jnp.sqrt(jnp.sum(g**2)), 1.)
+        return A*g/E_norm
 
     def return_kernel(self, params, c_in=3):
         x, y = self.generate_dominion()
@@ -279,6 +287,7 @@ class CenterSurroundLogSigma(nn.Module):
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
     normalize_prob: bool = True
+    normalize_energy: bool = False
 
     @nn.compact
     def __call__(self,
@@ -306,7 +315,7 @@ class CenterSurroundLogSigma(nn.Module):
             kernel = precalc_filters.value
         elif is_initialized and train: 
             x, y = self.generate_dominion()
-            kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, sigma2, A, self.normalize_prob)
+            kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, sigma2, A, self.normalize_prob, self.normalize_energy)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
             precalc_filters.value = kernel
@@ -332,13 +341,15 @@ class CenterSurroundLogSigma(nn.Module):
     #     return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
     
     @staticmethod
-    def center_surround(x, y, xmean, ymean, sigma, sigma2, A=1, normalize_prob=True):
+    def center_surround(x, y, xmean, ymean, sigma, sigma2, A=1, normalize_prob=True, normalize_energy=False):
         def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
             A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*sigma**2), 1.)
             return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
         g1 = gaussian(x, y, xmean, ymean, sigma, 1, normalize_prob)
         g2 = gaussian(x, y, xmean, ymean, sigma2, 1, normalize_prob)
-        return A*(g1-g2)
+        g = g1-g2
+        E_norm = jnp.where(normalize_energy, jnp.sqrt(jnp.sum(g**2)), 1.)
+        return A*g/E_norm
     
     # @staticmethod
     # def center_surround(x, y, xmean, ymean, sigma,  K, A=1, normalize_prob=True):
@@ -368,6 +379,7 @@ class CenterSurroundLogSigmaK(nn.Module):
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
     normalize_prob: bool = True
+    normalize_energy: bool = True
 
     @nn.compact
     def __call__(self,
@@ -395,7 +407,7 @@ class CenterSurroundLogSigmaK(nn.Module):
             kernel = precalc_filters.value
         elif is_initialized and train: 
             x, y = self.generate_dominion()
-            kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, sigma2, A, self.normalize_prob)
+            kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, sigma2, A, self.normalize_prob, self.normalize_energy)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
             precalc_filters.value = kernel
@@ -421,13 +433,15 @@ class CenterSurroundLogSigmaK(nn.Module):
     #     return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
     
     @staticmethod
-    def center_surround(x, y, xmean, ymean, sigma, sigma2, A=1, normalize_prob=True):
+    def center_surround(x, y, xmean, ymean, sigma, sigma2, A=1, normalize_prob=True, normalize_energy=False):
         def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
             A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*sigma**2), 1.)
             return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
         g1 = gaussian(x, y, xmean, ymean, sigma, 1, normalize_prob)
         g2 = gaussian(x, y, xmean, ymean, sigma2, 1, normalize_prob)
-        return A*(g1-g2)
+        g = g1 - g2
+        E_norm = jnp.where(normalize_energy, jnp.sqrt(jnp.sum(g**2)), 1.)
+        return A*g/E_norm
     
     # @staticmethod
     # def center_surround(x, y, xmean, ymean, sigma,  K, A=1, normalize_prob=True):
