@@ -24,6 +24,7 @@ class GaussianLayer(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
+    use_bias: bool = True
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
@@ -46,6 +47,10 @@ class GaussianLayer(nn.Module):
         A = self.param("A",
                        nn.initializers.ones,
                        (self.features*inputs.shape[-1],))
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (self.features,))
+        else: bias = 0.
 
         if is_initialized and not train: 
             kernel = precalc_filters.value
@@ -68,7 +73,7 @@ class GaussianLayer(nn.Module):
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
-        return outputs
+        return outputs + bias
 
     @staticmethod
     def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True, normalize_energy=False):
@@ -80,7 +85,7 @@ class GaussianLayer(nn.Module):
 
     def return_kernel(self, params, c_in):
         x, y = self.generate_dominion()
-        kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, params["params"]["sigma"], params["params"]["A"], self.normalize_prob)
+        kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, params["params"]["sigma"], params["params"]["A"], self.normalize_prob, self.normalize_energy)
         # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
         kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
         return kernel
@@ -98,6 +103,7 @@ class GaussianLayerLogSigma(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
+    use_bias: bool = True
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
@@ -121,7 +127,10 @@ class GaussianLayerLogSigma(nn.Module):
                        nn.initializers.ones,
                        (self.features*inputs.shape[-1],))
         sigma = jnp.exp(logsigma)
-
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (self.features,))
+        else: bias = 0.
         if is_initialized and not train: 
             kernel = precalc_filters.value
         elif is_initialized and train: 
@@ -143,7 +152,7 @@ class GaussianLayerLogSigma(nn.Module):
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
-        return outputs
+        return outputs + bias
 
     @staticmethod
     def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True, normalize_energy=False):
@@ -155,7 +164,7 @@ class GaussianLayerLogSigma(nn.Module):
 
     def return_kernel(self, params, c_in):
         x, y = self.generate_dominion()
-        kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, jnp.exp(params["params"]["logsigma"]), params["params"]["A"], self.normalize_prob)
+        kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, jnp.exp(params["params"]["logsigma"]), params["params"]["A"], self.normalize_prob, self.normalize_energy)
         # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
         kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
         return kernel
@@ -173,6 +182,7 @@ class GaborLayer(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
+    use_bias: bool = True
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
@@ -212,7 +222,10 @@ class GaborLayer(nn.Module):
                        nn.initializers.ones,
                        (self.features*inputs.shape[-1],))
         sigmax, sigmay = jnp.exp(logsigmax), jnp.exp(logsigmay)
-
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (self.features,))
+        else: bias = 0.
         if is_initialized and not train: 
             kernel = precalc_filters.value
         elif is_initialized and train: 
@@ -235,7 +248,7 @@ class GaborLayer(nn.Module):
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
-        return outputs
+        return outputs + bias
 
     @staticmethod
     def gabor(x, y, xmean, ymean, sigmax, sigmay, freq, theta, sigma_theta, rot_theta, A=1, normalize_prob=True, normalize_energy=False):
@@ -265,7 +278,7 @@ class GaborLayer(nn.Module):
         x, y = self.generate_dominion()
         sigmax, sigmay = jnp.exp(params["logsigmax"]), jnp.exp(params["logsigmay"])
         # sigmax, sigmay = jnp.exp(params["sigmax"]), jnp.exp(params["sigmay"])
-        kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, params["freq"], params["theta"], params["sigma_theta"], params["rot_theta"], params["A"], self.normalize_prob)
+        kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,0,0,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, params["freq"], params["theta"], params["sigma_theta"], params["rot_theta"], params["A"], self.normalize_prob, self.normalize_energy)
         # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, input_channels, self.features))
         kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
         return kernel
@@ -283,6 +296,7 @@ class CenterSurroundLogSigma(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
+    use_bias: bool = True
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
@@ -310,7 +324,10 @@ class CenterSurroundLogSigma(nn.Module):
                        (self.features*inputs.shape[-1],))
         sigma = jnp.exp(logsigma)
         sigma2 = jnp.exp(logsigma2)
-
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (self.features,))
+        else: bias = 0.
         if is_initialized and not train: 
             kernel = precalc_filters.value
         elif is_initialized and train: 
@@ -332,7 +349,7 @@ class CenterSurroundLogSigma(nn.Module):
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
-        return outputs
+        return outputs + bias
 
     # @staticmethod
     # def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
@@ -357,7 +374,7 @@ class CenterSurroundLogSigma(nn.Module):
 
     def return_kernel(self, params, c_in):
         x, y = self.generate_dominion()
-        kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, jnp.exp(params["params"]["logsigma"]), jnp.exp(params["params"]["logsigma2"]), params["params"]["A"], self.normalize_prob)
+        kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, jnp.exp(params["params"]["logsigma"]), jnp.exp(params["params"]["logsigma2"]), params["params"]["A"], self.normalize_prob, self.normalize_energy)
         # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
         kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
         return kernel
@@ -375,6 +392,7 @@ class CenterSurroundLogSigmaK(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
+    use_bias: bool = True
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
@@ -402,7 +420,10 @@ class CenterSurroundLogSigmaK(nn.Module):
                        (self.features*inputs.shape[-1],))
         sigma = jnp.exp(logsigma)
         sigma2 = K*sigma
-
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (self.features,))
+        else: bias = 0.
         if is_initialized and not train: 
             kernel = precalc_filters.value
         elif is_initialized and train: 
@@ -424,7 +445,7 @@ class CenterSurroundLogSigmaK(nn.Module):
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
-        return outputs
+        return outputs + bias
 
     # @staticmethod
     # def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
@@ -449,7 +470,7 @@ class CenterSurroundLogSigmaK(nn.Module):
 
     def return_kernel(self, params, c_in):
         x, y = self.generate_dominion()
-        kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None), out_axes=0)(x, y, self.xmean, self.ymean, jnp.exp(params["params"]["logsigma"]), params["params"]["K"]*jnp.exp(params["params"]["logsigma"]), params["params"]["A"], self.normalize_prob)
+        kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, jnp.exp(params["params"]["logsigma"]), params["params"]["K"]*jnp.exp(params["params"]["logsigma"]), params["params"]["A"], self.normalize_prob, self.normalize_energy)
         # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
         kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
         return kernel
