@@ -24,7 +24,7 @@ class GaussianLayer(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
-    use_bias: bool = True
+    use_bias: bool = False
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
@@ -103,7 +103,7 @@ class GaussianLayerLogSigma(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
-    use_bias: bool = True
+    use_bias: bool = False
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
@@ -182,7 +182,7 @@ class GaborLayer(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
-    use_bias: bool = True
+    use_bias: bool = False
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
@@ -296,7 +296,7 @@ class CenterSurroundLogSigma(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
-    use_bias: bool = True
+    use_bias: bool = False
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
@@ -392,7 +392,7 @@ class CenterSurroundLogSigmaK(nn.Module):
     feature_group_count: int = 1
     kernel_init: Callable = nn.initializers.lecun_normal()
     bias_init: Callable = nn.initializers.zeros_init()
-    use_bias: bool = True
+    use_bias: bool = False
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
