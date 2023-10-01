@@ -619,6 +619,9 @@ class JamesonHurvich(nn.Module):
         outputs = inputs @ self.Mng2xyz.T @ self.Mxyz2atd.T
         return outputs
 
+# %% ../Notebooks/00_layers.ipynb 63
+from perceptualtests.utils import spatio_temp_freq_domain
+
 # %% ../Notebooks/00_layers.ipynb 64
 class CSFFourier(nn.Module):
     """CSF SSO."""
