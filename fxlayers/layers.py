@@ -620,9 +620,85 @@ class JamesonHurvich(nn.Module):
         return outputs
 
 # %% ../Notebooks/00_layers.ipynb 63
-from perceptualtests.utils import spatio_temp_freq_domain
+# from perceptualtests.utils import spatio_temp_freq_domain
 
 # %% ../Notebooks/00_layers.ipynb 64
+def metefot(sec, foto, N, ma):
+    ss = foto.shape
+    fil = ss[0]
+    col = ss[1]
+    s = sec.shape
+    Nfot = s[1] / col
+
+    if N > Nfot:
+        sec = [sec, foto]
+    else:
+        if ma == 1:
+            sec = sec.at[:, (N-1)*col:N*col].set(foto)
+    # if incorrect results finish this function.
+    return sec
+
+# %% ../Notebooks/00_layers.ipynb 65
+def freqspace(N):
+    # Returns 2-d frequency range vectors for N[0] x N[1] matrix
+
+    f1 = (jnp.arange(0, N[0], 1)-jnp.floor(N[0]/2))*(2/N[0])
+    f2 = (jnp.arange(0, N[1], 1)-jnp.floor(N[1]/2))*(2/N[1])
+    F1, F2 = jnp.meshgrid(f1, f2)
+    return F1, F2
+
+# %% ../Notebooks/00_layers.ipynb 66
+def spatio_temp_freq_domain(Ny, Nx, Nt, fsx, fsy, fst):
+    int_x = Nx/fsx # Physical domain
+    int_y = Ny/fsy
+    int_t = Nt/fst
+
+    x = jnp.zeros((Ny, Nx*Nt)) # Big matrix
+    y = jnp.zeros((Ny, Nx*Nt))
+    t = jnp.zeros((Ny, Nx*Nt))
+
+    fot_x = jnp.linspace(0, int_x, Nx+1)
+    fot_x = fot_x[:-1]
+    fot_x = fot_x[None,:].repeat(Ny, 0)
+
+    fot_y = jnp.linspace(0, int_y, Ny+1)
+    fot_y = fot_y[:-1]
+    fot_y = fot_y[:,None].repeat(Nx, 1)
+
+    fot_t = jnp.ones((Ny, Nx))
+
+    val_t = jnp.linspace(0, int_t, Nt+1)
+    val_t = val_t[:-1]
+
+    for i in range(Nt):
+        x = metefot(x, fot_x, i+1, 1)
+        y = metefot(y, fot_y, i+1, 1)
+        t = metefot(t, val_t[i]*fot_t, i+1, 1)
+
+    [fx, fy] = freqspace([Nx, Ny])
+
+    fx = fx*fsx/2
+    fy = fy*fsy/2
+
+    ffx = jnp.zeros((Ny, Nx*Nt))
+    ffy = jnp.zeros((Ny, Nx*Nt))
+    ff_t = jnp.zeros((Ny, Nx*Nt))
+
+    fot_fx = fx
+    fot_fy = fy
+    fot_t = jnp.ones((Ny, Nx))
+
+    [ft, ft2] = freqspace([Nt, Nt])
+    val_t = ft*fst/2
+
+    for i in range(Nt):
+        ffx = metefot(ffx, fot_fx, i+1, 1)
+        ffy = metefot(ffy, fot_fy, i+1, 1)
+        ff_t = metefot(ff_t, val_t[0,:][i]*fot_t, i+1, 1)
+
+    return x, y, t, ffx, ffy, ff_t
+
+# %% ../Notebooks/00_layers.ipynb 67
 class CSFFourier(nn.Module):
     """CSF SSO."""
     fs: int = 64
@@ -658,10 +734,12 @@ class CSFFourier(nn.Module):
         b, h, w, c = inputs.shape
 
         ## 1. Achromatic CSF
+        # csf, fx, fy = jax.jit(self.csf_sso, static_argnums=(1,2))(fs=self.fs, Nx=w, Ny=h, alpha=alpha_achrom, beta=beta_achrom, g=330.74, fm=fm, l=0.837, s=s, w=1.0, os=6.664)
         csf, fx, fy = self.csf_sso(fs=self.fs, Nx=w, Ny=h, alpha=alpha_achrom, beta=beta_achrom, g=330.74, fm=fm, l=0.837, s=s, w=1.0, os=6.664)
 
         # jax.debug.print(f"Nx={w}, Ny={h}, {csf.shape}")
         ## 2. Chromatic CSFs
+        # csfrg, csfyb, fx, fy = jax.jit(self.csf_chrom, static_argnums=(1,2))(fs=self.fs, Nx=w, Ny=h, alpha_rg=alpha_chrom_rg, alpha_yb=alpha_chrom_yb, beta=beta_chrom)
         csfrg, csfyb, fx, fy = self.csf_chrom(fs=self.fs, Nx=w, Ny=h, alpha_rg=alpha_chrom_rg, alpha_yb=alpha_chrom_yb, beta=beta_chrom)
         # jax.debug.print(f"Nx={w}, Ny={h}, {csf.shape}, {csfrg.shape}, {csfyb.shape}")
 
@@ -709,86 +787,130 @@ class CSFFourier(nn.Module):
             umb = (cu-k*cu**m)*(1/(1+jnp.exp(jnp.log10(c/(alf*cu))/sig)))+(k*c**m)*(1-1/(1+jnp.exp(jnp.log10(c/(0.9*cu))/(sig/2))))
             return umb
         
-        def iafrg(f, C, facfrec, nolin):
-            f = facfrec*f
-            f = f.at[f==0].set(0.00001)
-            C = C.at[C==0].set(0.0000001)
+        # def iafrg(f, C, facfrec, nolin):
+        #     f = facfrec*f
+        #     f = jnp.clip(f, a_min=0.00001)
+        #     C = jnp.clip(C, a_min=0.0000001)
 
-            lf = len(f)
-            lc = len(C)
+        #     lf = len(f)
+        #     lc = len(C)
+
+        #     #iaf = np.zeros(lf,lc)
+        #     ace = jnp.zeros((lf,lc))
+        #     p = [0.0840, 0.8345, 0.6313, 0.2077]
+
+        #     if len(nolin)==1:
+        #         nolin = [nolin, nolin]
+
+        #     nolini = nolin
+        #     nolin = nolini[0]
+
+        #     if ((nolini[0]==0)&(nolini[1]==1)):
+        #         nolin=1
+
+
+        #     if nolin==1:
+        #         for i in range(lf):
+        #             cu = 1/(100*2537.9*sigm1d(f[i],-55.94,6.64))
+        #             ace[i,:] = umbinc3(C,cu,p[0],p[1],p[2],p[3])
+
+        #         iaf = 1/ace
+
+        #     else:
+        #         iaf=100*2537.9*sigm1d(f,-55.94,6.64)
+        #         iaf=iaf*jnp.ones((1,len(C)))
+
+        #     csfrg=iaf[0,:]
+
+        #     if ((nolini[0]==0)&(nolini[1]==1)):
+        #         s = iaf.shape
+        #         iafc = jnp.sum(iaf)
+        #         iaf = iafc*jnp.ones((1,s[1]))
+
+        #     return iaf, csfrg
+        
+        def iafrg(f, C, facfrec, nolin, lenf, lenC):
+            f = facfrec*f
+            f = jnp.clip(f, a_min=0.00001)
+            C = jnp.clip(C, a_min=0.0000001)
+
+            # lf = len(f)
+            # lc = len(C)
+            lf, lc = lenf, lenC
 
             #iaf = np.zeros(lf,lc)
             ace = jnp.zeros((lf,lc))
             p = [0.0840, 0.8345, 0.6313, 0.2077]
 
-            if len(nolin)==1:
-                nolin = [nolin, nolin]
+            # if len(nolin)==1:
+            #     nolin = [nolin, nolin]
 
             nolini = nolin
             nolin = nolini[0]
 
-            if ((nolini[0]==0)&(nolini[1]==1)):
-                nolin=1
+            # if ((nolini[0]==0)&(nolini[1]==1)):
+            #     nolin=1
 
 
-            if nolin==1:
-                for i in range(lf):
-                    cu = 1/(100*2537.9*sigm1d(f[i],-55.94,6.64))
-                    ace[i,:] = umbinc3(C,cu,p[0],p[1],p[2],p[3])
+            # if nolin==1:
+            #     for i in range(lf):
+            #         cu = 1/(100*2537.9*sigm1d(f[i],-55.94,6.64))
+            #         ace[i,:] = umbinc3(C,cu,p[0],p[1],p[2],p[3])
 
-                iaf = 1/ace
+            #     iaf = 1./ace
 
-            else:
-                iaf=100*2537.9*sigm1d(f,-55.94,6.64)
-                iaf=iaf*jnp.ones((1,len(C)))
+            # else:
+            iaf=100*2537.9*sigm1d(f,-55.94,6.64)
+            iaf=iaf*jnp.ones((1,len(C)))
 
             csfrg=iaf[0,:]
 
-            if ((nolini[0]==0)&(nolini[1]==1)):
-                s = iaf.shape
-                iafc = jnp.sum(iaf)
-                iaf = iafc*jnp.ones((1,s[1]))
+            # if ((nolini[0]==0)&(nolini[1]==1)):
+            s = iaf.shape
+            iafc = jnp.sum(iaf)
+            iaf = iafc*jnp.ones((1,s[1]))
 
             return iaf, csfrg
 
-        def iafyb(f, C, facfrec, nolin):
+        def iafyb(f, C, facfrec, nolin, lenf, lenC):
             f = facfrec*f
-            f = f.at[f==0].set(0.00001)
-            C = C.at[C==0].set(0.0000001)
+            f = jnp.clip(f, a_min=0.00001)
+            C = jnp.clip(C, a_min=0.0000001)
 
-            lf = len(f)
-            lc = len(C)
+            # lf = len(f)
+            # lc = len(C)
+            lf, lc = lenf, lenC
 
             #iaf = np.zeros(lf,lc)
             ace = jnp.zeros((lf,lc))
             p = [0.1611, 1.3354, 0.3077, 0.7746]
 
-            if len(nolin)==1:
-                nolin = [nolin, nolin]
+            # if len(nolin)==1:
+            #     nolin = [nolin, nolin]
 
             nolini = nolin
             nolin = nolini[0]
 
-            if ((nolini[0]==0)&(nolini[1]==1)):
-                nolin=1
+            # if ((nolini[0]==0)&(nolini[1]==1)):
+            #     nolin=1
 
-            if nolin==1:
-                for i in range(lf):
-                    cu=1/(100*719.7*sigm1d(f[i],-31.72,4.13))
-                    ace[i,:]=umbinc3(C,cu,p[0],p[1],p[2],p[3])
+            # if nolin==1:
+            #     for i in range(lf):
+            #         cu=1/(100*719.7*sigm1d(f[i],-31.72,4.13))
+            #         ace[i,:]=umbinc3(C,cu,p[0],p[1],p[2],p[3])
 
-                iaf = 1/ace
+            #     iaf = 1/ace
 
-            else:
-                iaf=100*719.7*sigm1d(f,-31.72,4.13)
-                iaf=iaf*jnp.ones((1,len(C)))
+            # else:
+            iaf=100*719.7*sigm1d(f,-31.72,4.13)
+            iaf=iaf*jnp.ones((1,len(C)))
 
             csfyb=iaf[0,:]
 
-            if ((nolini[0]==0)&(nolini[1]==1)):
-                s=iaf.shape
-                iafc=jnp.sum(iaf)
-                iaf=iafc*jnp.ones((1,s[1]))
+            # if ((nolini[0]==0)&(nolini[1]==1)):
+            s=iaf.shape
+            iafc=jnp.sum(iaf)
+            iaf=iafc*jnp.ones((1,s[1]))
             
             return iaf, csfyb
 
@@ -802,11 +924,11 @@ class CSFFourier(nn.Module):
         csfyb = jnp.zeros((Ny,Nx))
 
         for i in range(Ny):
-            [iaf_rg, csf_c] = iafrg(f[i,:], jnp.array([0.1]), 1, jnp.array([0, 0, 0]))
+            [iaf_rg, csf_c] = iafrg(f[i,:], jnp.array([0.1]), 1., jnp.array([0., 0., 0.]), len(f[i,:]), len(jnp.array([0.1])))
             # jax.debug.print(f"{csfrg.shape} / {csf_c.shape}")
             csfrg = csfrg.at[i,:].set(csf_c)
 
-            [iaf_yb, csf_c] = iafyb(f[i,:], jnp.array([0.1]), 1, jnp.array([0, 0, 0]))
+            [iaf_yb, csf_c] = iafyb(f[i,:], jnp.array([0.1]), 1., jnp.array([0., 0., 0.]), len(f[i,:]), len(jnp.array([0.1])))
             csfyb = csfyb.at[i,:].set(csf_c)
 
         fact_rg = 0.75
@@ -818,7 +940,7 @@ class CSFFourier(nn.Module):
 
         return alpha_rg*csfrg, alpha_yb*csfyb, fx, fy
 
-# %% ../Notebooks/00_layers.ipynb 78
+# %% ../Notebooks/00_layers.ipynb 90
 class GDNStar(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
@@ -841,7 +963,7 @@ class GDNStar(nn.Module):
         coef = (jnp.clip(H(inputs_star**self.alpha), a_min=1e-5)**self.epsilon)/inputs_star
         return coef*inputs/denom
 
-# %% ../Notebooks/00_layers.ipynb 85
+# %% ../Notebooks/00_layers.ipynb 97
 class GDNStarSign(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
@@ -866,7 +988,7 @@ class GDNStarSign(nn.Module):
         coef = (jnp.clip(H(inputs_star**self.alpha), a_min=1e-5)**self.epsilon)/inputs_star
         return coef*inputs*inputs_sign/denom
 
-# %% ../Notebooks/00_layers.ipynb 93
+# %% ../Notebooks/00_layers.ipynb 105
 class GDNDisplacement(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
@@ -894,7 +1016,7 @@ class GDNDisplacement(nn.Module):
         coef = 1.
         return coef*(inputs-inputs_mean)/denom
 
-# %% ../Notebooks/00_layers.ipynb 97
+# %% ../Notebooks/00_layers.ipynb 109
 class GDNStarDisplacement(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 

@@ -77,4 +77,7 @@ d = { 'settings': { 'branch': 'main',
                                                                                           'fxlayers/layers.py'),
                                  'fxlayers.layers.JamesonHurvich': ('layers.html#jamesonhurvich', 'fxlayers/layers.py'),
                                  'fxlayers.layers.JamesonHurvich.__call__': ('layers.html#jamesonhurvich.__call__', 'fxlayers/layers.py'),
-                                 'fxlayers.layers.JamesonHurvich.setup': ('layers.html#jamesonhurvich.setup', 'fxlayers/layers.py')}}}
+                                 'fxlayers.layers.JamesonHurvich.setup': ('layers.html#jamesonhurvich.setup', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.freqspace': ('layers.html#freqspace', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.metefot': ('layers.html#metefot', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.spatio_temp_freq_domain': ('layers.html#spatio_temp_freq_domain', 'fxlayers/layers.py')}}}
