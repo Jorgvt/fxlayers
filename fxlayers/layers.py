@@ -969,16 +969,29 @@ class GDN(nn.Module):
         return inputs / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
 
 # %% ../Notebooks/00_layers.ipynb 92
+class ClippedModule(nn.Module):
+    layer: nn.Module
+    a_min: float = -jnp.inf
+    a_max: float = jnp.inf
+
+    @nn.compact
+    def __call__(self,
+                 inputs,
+                 **kwargs,
+                 ):
+        return jnp.clip(self.layer(inputs, **kwargs), a_min=self.a_min, a_max=self.a_max)
+
+# %% ../Notebooks/00_layers.ipynb 93
 class GDNStar(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
     kernel_size: Sequence[int]
     apply_independently: bool = False
-    inputs_star: float = 1.
+    inputs_star: Union[float, Sequence[float]] = 1.
     alpha: float = 2.
     epsilon: float = 1/2
-    # kernel_init = nn.initializers.ones_init()
-    # bias_init = nn.initializers.ones_init()
+    kernel_init: Callable = nn.initializers.ones_init()
+    bias_init: Callable = nn.initializers.ones_init()
 
     @nn.compact
     def __call__(self,
@@ -991,13 +1004,13 @@ class GDNStar(nn.Module):
         coef = (jnp.clip(H(inputs_star**self.alpha), a_min=1e-5)**self.epsilon)/inputs_star
         return coef*inputs/denom
 
-# %% ../Notebooks/00_layers.ipynb 99
+# %% ../Notebooks/00_layers.ipynb 102
 class GDNStarSign(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
     kernel_size: Sequence[int]
     apply_independently: bool = False
-    inputs_star: float = 1.
+    inputs_star: Union[float, Sequence[float]] = 1.
     alpha: float = 2.
     epsilon: float = 1/2
     # kernel_init = nn.initializers.ones_init()
@@ -1016,13 +1029,13 @@ class GDNStarSign(nn.Module):
         coef = (jnp.clip(H(inputs_star**self.alpha), a_min=1e-5)**self.epsilon)/inputs_star
         return coef*inputs*inputs_sign/denom
 
-# %% ../Notebooks/00_layers.ipynb 107
+# %% ../Notebooks/00_layers.ipynb 110
 class GDNDisplacement(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
     kernel_size: Sequence[int]
     apply_independently: bool = False
-    inputs_star: float = 1.
+    inputs_star: Union[float, Sequence[float]] = 1.
     alpha: float = 2.
     epsilon: float = 1/2
     # kernel_init = nn.initializers.ones_init()
@@ -1044,13 +1057,13 @@ class GDNDisplacement(nn.Module):
         coef = 1.
         return coef*(inputs-inputs_mean)/denom
 
-# %% ../Notebooks/00_layers.ipynb 111
+# %% ../Notebooks/00_layers.ipynb 114
 class GDNStarDisplacement(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
     kernel_size: Sequence[int]
     apply_independently: bool = False
-    inputs_star: float = 1.
+    inputs_star: Union[float, Sequence[float]] = 1.
     alpha: float = 2.
     epsilon: float = 1/2
     # kernel_init = nn.initializers.ones_init()
@@ -1072,7 +1085,7 @@ class GDNStarDisplacement(nn.Module):
         # coef = 1.
         return coef*(inputs-inputs_mean)/denom
 
-# %% ../Notebooks/00_layers.ipynb 117
+# %% ../Notebooks/00_layers.ipynb 120
 class GDNStarRunning(nn.Module):
     """GDN variation where x^* is obtained as a running mean of the previously obtained values."""
 
@@ -1103,7 +1116,7 @@ class GDNStarRunning(nn.Module):
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95))/2
         return coef*inputs/denom
 
-# %% ../Notebooks/00_layers.ipynb 124
+# %% ../Notebooks/00_layers.ipynb 127
 class GDNStarDisplacementRunning(nn.Module):
     """GDN variation where x^* is obtained as a running mean of the previously obtained values."""
 
