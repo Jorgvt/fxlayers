@@ -2,7 +2,8 @@
 
 # %% auto 0
 __all__ = ['GaussianLayer', 'GaborLayer', 'CenterSurroundLogSigma', 'CenterSurroundLogSigmaK', 'GaborLayer_', 'JamesonHurvich',
-           'CSFFourier', 'GDNStar', 'GDNStarSign', 'GDNDisplacement', 'GDNStarDisplacement']
+           'CSFFourier', 'GDNStar', 'GDNStarSign', 'GDNDisplacement', 'GDNStarDisplacement',
+           'GDNStarDisplacementRunning']
 
 # %% ../Notebooks/00_layers.ipynb 3
 import jax
@@ -1042,4 +1043,37 @@ class GDNStarDisplacement(nn.Module):
         denom = jnp.clip(H((inputs-inputs_mean)**self.alpha), a_min=1e-5)**self.epsilon
         coef = (jnp.clip(H(inputs_star**self.alpha), a_min=1e-5)**self.epsilon)/inputs_star
         # coef = 1.
+        return coef*(inputs-inputs_mean)/denom
+
+# %% ../Notebooks/00_layers.ipynb 115
+class GDNStarDisplacementRunning(nn.Module):
+    """GDN variation where x^* is obtained as a running mean of the previously obtained values."""
+
+    kernel_size: Sequence[int]
+    apply_independently: bool = False
+    # inputs_star: float = 1.
+    alpha: float = 2.
+    epsilon: float = 1/2
+    # kernel_init = nn.initializers.ones_init()
+    # bias_init = nn.initializers.ones_init()
+
+    @nn.compact
+    def __call__(self,
+                 inputs,
+                 train=False,
+                 **kwargs,
+                 ):
+        # inputs_sign = jnp.sign(inputs)
+        # inputs = jnp.abs(inputs)
+        is_initialized = self.has_variable("batch_stats", "inputs_star")
+        # inputs_star = self.variable("batch_stats", "inputs_star", lambda x: x, jnp.quantile(inputs, q=0.95))
+        inputs_star = self.variable("batch_stats", "inputs_star", jnp.ones, (1,))
+        inputs_mean = inputs.mean(axis=(1,2), keepdims=True)
+        inputs_mean = jnp.ones_like(inputs)*inputs_mean
+        H = nn.Conv(features=inputs.shape[-1], kernel_size=self.kernel_size, use_bias=True, feature_group_count=inputs.shape[-1] if self.apply_independently else 1)#, kernel_init=self.kernel_init, bias_init=self.bias_init)
+        inputs_star_ = jnp.ones_like(inputs)*inputs_star.value
+        denom = jnp.clip(H((inputs-inputs_mean)**self.alpha), a_min=1e-5)**self.epsilon
+        coef = (jnp.clip(H(inputs_star_**self.alpha), a_min=1e-5)**self.epsilon)/inputs_star_
+        if is_initialized and train:
+            inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95))/2
         return coef*(inputs-inputs_mean)/denom
