@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['GaussianLayer', 'GaborLayer', 'CenterSurroundLogSigma', 'CenterSurroundLogSigmaK', 'GaborLayer_', 'JamesonHurvich',
            'CSFFourier', 'GDN', 'GDNStar', 'GDNStarSign', 'GDNDisplacement', 'GDNStarDisplacement', 'GDNStarRunning',
-           'GDNStarDisplacementRunning']
+           'GDNStarDisplacementRunning', 'FreqGaussian']
 
 # %% ../Notebooks/00_layers.ipynb 4
 import jax
@@ -506,6 +506,7 @@ class GaborLayer_(nn.Module):
     def __call__(self,
                  inputs,
                  train=False,
+                 return_freq=False,
                  ):
         features = self.n_scales * self.n_orientations * len(self.phase)
         is_initialized = self.has_variable("precalc_filter", "kernel")
@@ -563,7 +564,8 @@ class GaborLayer_(nn.Module):
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
-        return outputs + bias
+        if not return_freq: return outputs + bias
+        else: return outputs + bias, freq
 
     @staticmethod
     def gabor(x, y, xmean, ymean, sigmax, sigmay, freq, theta, sigma_theta, phase, A=1, normalize_prob=True, normalize_energy=False):
@@ -1145,3 +1147,44 @@ class GDNStarDisplacementRunning(nn.Module):
         if is_initialized and train:
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95))/2
         return coef*(inputs-inputs_mean)/denom
+
+# %% ../Notebooks/00_layers.ipynb 135
+class FreqGaussian(nn.Module):
+    """(1D) Gaussian interaction between frequencies."""
+    use_bias: bool = False
+    strides: int = 1
+    padding: str = "SAME"
+    bias_init: Callable = nn.initializers.zeros_init()
+
+    @nn.compact
+    def __call__(self,
+                 inputs,
+                 fmean,
+                 **kwargs,
+                 ):
+        sigma = self.param("sigma",
+                           k_array(0.4, arr=1/fmean),
+                           (inputs.shape[-1],))
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (len(fmean),))
+        else: bias = 0.
+
+        kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=0)(fmean, fmean, sigma, 1)
+        kernel = kernel[None,None,:,:]
+
+        ## Add the batch dim if the input is a single element
+        if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
+        else: had_batch = True
+        outputs = lax.conv(jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
+               jnp.transpose(kernel,[3,2,0,1]), # rhs = OIHW conv kernel tensor
+               (self.strides, self.strides),
+               self.padding)
+        ## Move the channels back to the last dim
+        outputs = jnp.transpose(outputs, (0,2,3,1))
+        if not had_batch: outputs = outputs[0]
+        return outputs + bias
+
+    @staticmethod
+    def gaussian(f, fmean, sigma, A=1):
+        return A*jnp.exp(-((f-fmean)**2)/(2*sigma**2))
