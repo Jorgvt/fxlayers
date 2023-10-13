@@ -5,7 +5,7 @@ __all__ = ['GaussianLayer', 'GaborLayer', 'CenterSurroundLogSigma', 'CenterSurro
            'CSFFourier', 'GDN', 'GDNStar', 'GDNStarSign', 'GDNDisplacement', 'GDNStarDisplacement', 'GDNStarRunning',
            'GDNStarDisplacementRunning']
 
-# %% ../Notebooks/00_layers.ipynb 3
+# %% ../Notebooks/00_layers.ipynb 4
 import jax
 from typing import Any, Callable, Sequence, Union
 from jax import lax, random, numpy as jnp
@@ -16,7 +16,7 @@ from einops import rearrange, repeat
 
 from .initializers import *
 
-# %% ../Notebooks/00_layers.ipynb 7
+# %% ../Notebooks/00_layers.ipynb 8
 class GaussianLayer(nn.Module):
     """Parametric gaussian layer."""
     features: int
@@ -95,7 +95,7 @@ class GaussianLayer(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
 
-# %% ../Notebooks/00_layers.ipynb 8
+# %% ../Notebooks/00_layers.ipynb 9
 class GaussianLayerLogSigma(nn.Module):
     """Parametric gaussian layer that optimizes log(sigma) instead of sigma."""
     features: int
@@ -174,7 +174,7 @@ class GaussianLayerLogSigma(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
 
-# %% ../Notebooks/00_layers.ipynb 20
+# %% ../Notebooks/00_layers.ipynb 21
 class GaborLayer(nn.Module):
     """Parametric Gabor layer."""
     features: int
@@ -288,7 +288,7 @@ class GaborLayer(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
 
-# %% ../Notebooks/00_layers.ipynb 33
+# %% ../Notebooks/00_layers.ipynb 34
 class CenterSurroundLogSigma(nn.Module):
     """Parametric center surround layer that optimizes log(sigma) instead of sigma."""
     features: int
@@ -384,7 +384,7 @@ class CenterSurroundLogSigma(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
 
-# %% ../Notebooks/00_layers.ipynb 36
+# %% ../Notebooks/00_layers.ipynb 37
 class CenterSurroundLogSigmaK(nn.Module):
     """Parametric center surround layer that optimizes log(sigma) instead of sigma and has a factor K instead of a second sigma."""
     features: int
@@ -480,7 +480,7 @@ class CenterSurroundLogSigmaK(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
 
-# %% ../Notebooks/00_layers.ipynb 48
+# %% ../Notebooks/00_layers.ipynb 49
 class GaborLayer_(nn.Module):
     """Parametric Gabor layer with particular initialization."""
     # features: int
@@ -600,7 +600,7 @@ class GaborLayer_(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
 
-# %% ../Notebooks/00_layers.ipynb 59
+# %% ../Notebooks/00_layers.ipynb 60
 class JamesonHurvich(nn.Module):
     """Jameson & Hurvich transformation from RGB to ATD."""
 
@@ -619,9 +619,6 @@ class JamesonHurvich(nn.Module):
         outputs = inputs**2
         outputs = inputs @ self.Mng2xyz.T @ self.Mxyz2atd.T
         return outputs
-
-# %% ../Notebooks/00_layers.ipynb 63
-# from perceptualtests.utils import spatio_temp_freq_domain
 
 # %% ../Notebooks/00_layers.ipynb 64
 def metefot(sec, foto, N, ma):
