@@ -507,6 +507,7 @@ class GaborLayer_(nn.Module):
                  inputs,
                  train=False,
                  return_freq=False,
+                 return_theta=False,
                  ):
         features = self.n_scales * self.n_orientations * len(self.phase)
         is_initialized = self.has_variable("precalc_filter", "kernel")
@@ -564,8 +565,14 @@ class GaborLayer_(nn.Module):
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
-        if not return_freq: return outputs + bias
-        else: return outputs + bias, freq
+        if return_freq and return_theta:
+            return outputs + bias, freq, theta
+        elif return_freq and not return_theta:
+            return outputs + bias, freq
+        elif not return_freq and return_theta:
+            return outputs + bias, theta
+        else:
+            return outputs + bias
 
     @staticmethod
     def gabor(x, y, xmean, ymean, sigmax, sigmay, freq, theta, sigma_theta, phase, A=1, normalize_prob=True, normalize_energy=False):
@@ -1230,7 +1237,7 @@ class OrientGaussian(nn.Module):
                                             self.bias_init,
                                             (len(fmean),))
         else: bias = 0.
-        n_groups = inputs.shape[-1] // len(fmean)
+        n_groups = inputs.shape[-1] // len(theta_mean)
         kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=0)(theta_mean, theta_mean, sigma, 1)
         kernel = kernel[None,None,:,:]
         kernel = jnp.repeat(kernel, repeats=n_groups, axis=-1)
