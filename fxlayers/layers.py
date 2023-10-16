@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['GaussianLayer', 'GaborLayer', 'CenterSurroundLogSigma', 'CenterSurroundLogSigmaK', 'GaborLayer_', 'JamesonHurvich',
            'CSFFourier', 'GDN', 'GDNStar', 'GDNStarSign', 'GDNDisplacement', 'GDNStarDisplacement', 'GDNStarRunning',
-           'GDNStarDisplacementRunning', 'FreqGaussian']
+           'GDNStarDisplacementRunning', 'FreqGaussian', 'OrientGaussian']
 
 # %% ../Notebooks/00_layers.ipynb 4
 import jax
@@ -1169,17 +1169,20 @@ class FreqGaussian(nn.Module):
                                             self.bias_init,
                                             (len(fmean),))
         else: bias = 0.
-
+        n_groups = inputs.shape[-1] // len(fmean)
         kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=0)(fmean, fmean, sigma, 1)
         kernel = kernel[None,None,:,:]
+        kernel = jnp.repeat(kernel, repeats=n_groups, axis=-1)
 
         ## Add the batch dim if the input is a single element
         if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
         else: had_batch = True
-        outputs = lax.conv(jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
-               jnp.transpose(kernel,[3,2,0,1]), # rhs = OIHW conv kernel tensor
-               (self.strides, self.strides),
-               self.padding)
+        outputs = lax.conv_general_dilated(
+                jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
+                jnp.transpose(kernel,[3,2,0,1]), # rhs = OIHW conv kernel tensor
+                (self.strides, self.strides),
+                self.padding,
+                feature_group_count=n_groups)
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
@@ -1188,3 +1191,64 @@ class FreqGaussian(nn.Module):
     @staticmethod
     def gaussian(f, fmean, sigma, A=1):
         return A*jnp.exp(-((f-fmean)**2)/(2*sigma**2))
+
+# %% ../Notebooks/00_layers.ipynb 143
+def wrapTo180(angle, # Deg
+              ):
+    """Wraps an angle to the range [-180, 180]."""
+    angle =  angle % 360
+    angle = (angle + 360) % 360        
+    return jnp.where(angle>180, angle-360, angle)
+
+# %% ../Notebooks/00_layers.ipynb 145
+def process_angles(angle1, # Deg.
+                   angle2, # Deg
+                   ):
+    """Takes two angles as input and outputs their difference making all necessary assumptions."""
+    dif = angle1 - angle2
+    dif2 = dif + 180
+    return jnp.min(jnp.stack([jnp.abs(wrapTo180(dif)), jnp.abs(wrapTo180(dif2))]), axis=0)
+
+# %% ../Notebooks/00_layers.ipynb 147
+class OrientGaussian(nn.Module):
+    """(1D) Gaussian interaction between orientations."""
+    use_bias: bool = False
+    strides: int = 1
+    padding: str = "SAME"
+    bias_init: Callable = nn.initializers.zeros_init()
+
+    @nn.compact
+    def __call__(self,
+                 inputs,
+                 theta_mean,
+                 **kwargs,
+                 ):
+        sigma = self.param("sigma",
+                           k_array(0.4, arr=1/theta_mean),
+                           (inputs.shape[-1],))
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (len(fmean),))
+        else: bias = 0.
+        n_groups = inputs.shape[-1] // len(fmean)
+        kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=0)(theta_mean, theta_mean, sigma, 1)
+        kernel = kernel[None,None,:,:]
+        kernel = jnp.repeat(kernel, repeats=n_groups, axis=-1)
+
+        ## Add the batch dim if the input is a single element
+        if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
+        else: had_batch = True
+        outputs = lax.conv_general_dilated(
+                jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
+                jnp.transpose(kernel,[3,2,0,1]), # rhs = OIHW conv kernel tensor
+                (self.strides, self.strides),
+                self.padding,
+                feature_group_count=n_groups)
+        ## Move the channels back to the last dim
+        outputs = jnp.transpose(outputs, (0,2,3,1))
+        if not had_batch: outputs = outputs[0]
+        return outputs + bias
+
+    @staticmethod
+    def gaussian(theta, theta_mean, sigma, A=1):
+        return A*jnp.exp(-(process_angles(theta, theta_mean)**2)/(2*sigma**2))

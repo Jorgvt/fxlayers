@@ -91,6 +91,11 @@ d = { 'settings': { 'branch': 'main',
                                  'fxlayers.layers.JamesonHurvich': ('layers.html#jamesonhurvich', 'fxlayers/layers.py'),
                                  'fxlayers.layers.JamesonHurvich.__call__': ('layers.html#jamesonhurvich.__call__', 'fxlayers/layers.py'),
                                  'fxlayers.layers.JamesonHurvich.setup': ('layers.html#jamesonhurvich.setup', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.OrientGaussian': ('layers.html#orientgaussian', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.OrientGaussian.__call__': ('layers.html#orientgaussian.__call__', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.OrientGaussian.gaussian': ('layers.html#orientgaussian.gaussian', 'fxlayers/layers.py'),
                                  'fxlayers.layers.freqspace': ('layers.html#freqspace', 'fxlayers/layers.py'),
                                  'fxlayers.layers.metefot': ('layers.html#metefot', 'fxlayers/layers.py'),
-                                 'fxlayers.layers.spatio_temp_freq_domain': ('layers.html#spatio_temp_freq_domain', 'fxlayers/layers.py')}}}
+                                 'fxlayers.layers.process_angles': ('layers.html#process_angles', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.spatio_temp_freq_domain': ('layers.html#spatio_temp_freq_domain', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.wrapTo180': ('layers.html#wrapto180', 'fxlayers/layers.py')}}}
