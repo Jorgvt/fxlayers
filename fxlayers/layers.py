@@ -1101,7 +1101,7 @@ class GDNStarRunning(nn.Module):
     alpha: float = 2.
     epsilon: float = 1/2
     # kernel_init = nn.initializers.ones_init()
-    # bias_init = nn.initializers.ones_init()
+    bias_init = nn.initializers.ones_init()
 
     @nn.compact
     def __call__(self,
@@ -1114,10 +1114,10 @@ class GDNStarRunning(nn.Module):
         is_initialized = self.has_variable("batch_stats", "inputs_star")
         # inputs_star = self.variable("batch_stats", "inputs_star", lambda x: x, jnp.quantile(inputs, q=0.95))
         inputs_star = self.variable("batch_stats", "inputs_star", jnp.ones, (1,))
-        H = nn.Conv(features=inputs.shape[-1], kernel_size=self.kernel_size, use_bias=True, feature_group_count=inputs.shape[-1] if self.apply_independently else 1)#, kernel_init=self.kernel_init, bias_init=self.bias_init)
+        H = nn.Conv(features=inputs.shape[-1], kernel_size=self.kernel_size, use_bias=True, feature_group_count=inputs.shape[-1] if self.apply_independently else 1, bias_init=self.bias_init)
         inputs_star_ = jnp.ones_like(inputs)*inputs_star.value
         denom = jnp.clip(H((inputs)**self.alpha), a_min=1e-5)**self.epsilon
-        coef = (jnp.clip(H(inputs_star_**self.alpha), a_min=1e-5)**self.epsilon)/inputs_star_
+        coef = (jnp.clip(H(inputs_star_**self.alpha), a_min=1e-5)**self.epsilon)#/inputs_star_
         if is_initialized and train:
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95))/2
         return coef*inputs/denom
