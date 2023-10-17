@@ -1101,7 +1101,7 @@ class GDNStarRunning(nn.Module):
     alpha: float = 2.
     epsilon: float = 1/2
     # kernel_init = nn.initializers.ones_init()
-    bias_init = nn.initializers.ones_init()
+    bias_init: Callable = nn.initializers.ones_init()
 
     @nn.compact
     def __call__(self,
