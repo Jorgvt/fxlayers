@@ -1231,7 +1231,8 @@ class OrientGaussian(nn.Module):
                  **kwargs,
                  ):
         sigma = self.param("sigma",
-                           k_array(0.4, arr=1/theta_mean),
+                        #    equal_to([jnp.pi/4]*len(theta_mean)),
+                           equal_to([30]*len(theta_mean)),
                            (inputs.shape[-1],))
         if self.use_bias: bias = self.param("bias",
                                             self.bias_init,
