@@ -93,7 +93,7 @@ class GaussianLayer(nn.Module):
         return kernel
     
     def generate_dominion(self):
-        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
 # %% ../Notebooks/00_layers.ipynb 9
 class GaussianLayerLogSigma(nn.Module):
@@ -172,7 +172,7 @@ class GaussianLayerLogSigma(nn.Module):
         return kernel
     
     def generate_dominion(self):
-        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
 # %% ../Notebooks/00_layers.ipynb 21
 class GaborLayer(nn.Module):
@@ -286,7 +286,7 @@ class GaborLayer(nn.Module):
         return kernel
     
     def generate_dominion(self):
-        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
 # %% ../Notebooks/00_layers.ipynb 34
 class CenterSurroundLogSigma(nn.Module):
@@ -382,7 +382,7 @@ class CenterSurroundLogSigma(nn.Module):
         return kernel
     
     def generate_dominion(self):
-        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
 # %% ../Notebooks/00_layers.ipynb 37
 class CenterSurroundLogSigmaK(nn.Module):
@@ -478,7 +478,7 @@ class CenterSurroundLogSigmaK(nn.Module):
         return kernel
     
     def generate_dominion(self):
-        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
 # %% ../Notebooks/00_layers.ipynb 49
 class GaborLayer_(nn.Module):
@@ -607,7 +607,7 @@ class GaborLayer_(nn.Module):
         return kernel
     
     def generate_dominion(self):
-        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1], jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size+1)[:-1])
+        return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
 # %% ../Notebooks/00_layers.ipynb 60
 class JamesonHurvich(nn.Module):
