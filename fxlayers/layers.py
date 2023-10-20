@@ -60,7 +60,7 @@ class GaussianLayer(nn.Module):
             x, y = self.generate_dominion()
             kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, A, self.normalize_prob, self.normalize_energy)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
-            kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
+            kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1]//self.feature_group_count, c_out=self.features)
             precalc_filters.value = kernel
         else:
             kernel = precalc_filters.value
@@ -140,7 +140,7 @@ class GaussianLayerLogSigma(nn.Module):
             x, y = self.generate_dominion()
             kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, A, self.normalize_prob, self.normalize_energy)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
-            kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
+            kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1]//self.feature_group_count, c_out=self.features)
             precalc_filters.value = kernel
         else:
             kernel = precalc_filters.value
