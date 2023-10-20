@@ -68,10 +68,11 @@ class GaussianLayer(nn.Module):
         ## Add the batch dim if the input is a single element
         if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
         else: had_batch = True
-        outputs = lax.conv(jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
+        outputs = lax.conv_general_dilated(jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
                jnp.transpose(kernel,[3,2,0,1]), # rhs = OIHW conv kernel tensor
                (self.strides, self.strides),
-               self.padding)
+               self.padding,
+               feature_group_count=self.feature_group_count)
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
@@ -147,10 +148,11 @@ class GaussianLayerLogSigma(nn.Module):
         ## Add the batch dim if the input is a single element
         if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
         else: had_batch = True
-        outputs = lax.conv(jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
+        outputs = lax.conv_general_dilated(jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
                jnp.transpose(kernel,[3,2,0,1]), # rhs = OIHW conv kernel tensor
                (self.strides, self.strides),
-               self.padding)
+               self.padding,
+               feature_group_count=self.feature_group_count)
         ## Move the channels back to the last dim
         outputs = jnp.transpose(outputs, (0,2,3,1))
         if not had_batch: outputs = outputs[0]
