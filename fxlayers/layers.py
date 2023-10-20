@@ -42,13 +42,13 @@ class GaussianLayer(nn.Module):
         precalc_filters = self.variable("precalc_filter",
                                         "kernel",
                                         jnp.zeros,
-                                        (self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
+                                        (self.kernel_size, self.kernel_size, inputs.shape[-1]//self.feature_group_count, self.features))
         sigma = self.param("sigma",
                            nn.initializers.uniform(scale=self.xmean),
-                           (self.features*inputs.shape[-1],))
+                           (self.features*inputs.shape[-1]//self.feature_group_count,))
         A = self.param("A",
                        nn.initializers.ones,
-                       (self.features*inputs.shape[-1],))
+                       (self.features*inputs.shape[-1]//self.feature_group_count,))
         if self.use_bias: bias = self.param("bias",
                                             self.bias_init,
                                             (self.features,))
@@ -90,7 +90,7 @@ class GaussianLayer(nn.Module):
         x, y = self.generate_dominion()
         kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, params["params"]["sigma"], params["params"]["A"], self.normalize_prob, self.normalize_energy)
         # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
-        kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
+        kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in//self.feature_group_count, c_out=self.features)
         return kernel
     
     def generate_dominion(self):
@@ -122,13 +122,13 @@ class GaussianLayerLogSigma(nn.Module):
         precalc_filters = self.variable("precalc_filter",
                                         "kernel",
                                         jnp.zeros,
-                                        (self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
+                                        (self.kernel_size, self.kernel_size, inputs.shape[-1]//self.feature_group_count, self.features))
         logsigma = self.param("logsigma",
                            bounded_uniform(minval=-4., maxval=-0.5),
-                           (self.features*inputs.shape[-1],))
+                           (self.features*inputs.shape[-1]//self.feature_group_count,))
         A = self.param("A",
                        nn.initializers.ones,
-                       (self.features*inputs.shape[-1],))
+                       (self.features*inputs.shape[-1]//self.feature_group_count,))
         sigma = jnp.exp(logsigma)
         if self.use_bias: bias = self.param("bias",
                                             self.bias_init,
@@ -170,13 +170,13 @@ class GaussianLayerLogSigma(nn.Module):
         x, y = self.generate_dominion()
         kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, jnp.exp(params["params"]["logsigma"]), params["params"]["A"], self.normalize_prob, self.normalize_energy)
         # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, 3, self.features))
-        kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in, c_out=self.features)
+        kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=c_in//self.feature_group_count, c_out=self.features)
         return kernel
     
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
-# %% ../Notebooks/00_layers.ipynb 21
+# %% ../Notebooks/00_layers.ipynb 24
 class GaborLayer(nn.Module):
     """Parametric Gabor layer."""
     features: int
@@ -290,7 +290,7 @@ class GaborLayer(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
-# %% ../Notebooks/00_layers.ipynb 34
+# %% ../Notebooks/00_layers.ipynb 37
 class CenterSurroundLogSigma(nn.Module):
     """Parametric center surround layer that optimizes log(sigma) instead of sigma."""
     features: int
@@ -386,7 +386,7 @@ class CenterSurroundLogSigma(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
-# %% ../Notebooks/00_layers.ipynb 37
+# %% ../Notebooks/00_layers.ipynb 40
 class CenterSurroundLogSigmaK(nn.Module):
     """Parametric center surround layer that optimizes log(sigma) instead of sigma and has a factor K instead of a second sigma."""
     features: int
@@ -482,7 +482,7 @@ class CenterSurroundLogSigmaK(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
-# %% ../Notebooks/00_layers.ipynb 49
+# %% ../Notebooks/00_layers.ipynb 52
 class GaborLayer_(nn.Module):
     """Parametric Gabor layer with particular initialization."""
     # features: int
@@ -611,7 +611,7 @@ class GaborLayer_(nn.Module):
     def generate_dominion(self):
         return jnp.meshgrid(jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size), jnp.linspace(0,self.kernel_size/self.fs,num=self.kernel_size))
 
-# %% ../Notebooks/00_layers.ipynb 60
+# %% ../Notebooks/00_layers.ipynb 63
 class JamesonHurvich(nn.Module):
     """Jameson & Hurvich transformation from RGB to ATD."""
 
@@ -631,7 +631,7 @@ class JamesonHurvich(nn.Module):
         outputs = inputs @ self.Mng2xyz.T @ self.Mxyz2atd.T
         return outputs
 
-# %% ../Notebooks/00_layers.ipynb 64
+# %% ../Notebooks/00_layers.ipynb 67
 def metefot(sec, foto, N, ma):
     ss = foto.shape
     fil = ss[0]
@@ -647,7 +647,7 @@ def metefot(sec, foto, N, ma):
     # if incorrect results finish this function.
     return sec
 
-# %% ../Notebooks/00_layers.ipynb 65
+# %% ../Notebooks/00_layers.ipynb 68
 def freqspace(N):
     # Returns 2-d frequency range vectors for N[0] x N[1] matrix
 
@@ -656,7 +656,7 @@ def freqspace(N):
     F1, F2 = jnp.meshgrid(f1, f2)
     return F1, F2
 
-# %% ../Notebooks/00_layers.ipynb 66
+# %% ../Notebooks/00_layers.ipynb 69
 def spatio_temp_freq_domain(Ny, Nx, Nt, fsx, fsy, fst):
     int_x = Nx/fsx # Physical domain
     int_y = Ny/fsy
@@ -707,7 +707,7 @@ def spatio_temp_freq_domain(Ny, Nx, Nt, fsx, fsy, fst):
 
     return x, y, t, ffx, ffy, ff_t
 
-# %% ../Notebooks/00_layers.ipynb 67
+# %% ../Notebooks/00_layers.ipynb 70
 class CSFFourier(nn.Module):
     """CSF SSO."""
     fs: int = 64
@@ -949,7 +949,7 @@ class CSFFourier(nn.Module):
 
         return alpha_rg*csfrg, alpha_yb*csfyb, fx, fy
 
-# %% ../Notebooks/00_layers.ipynb 90
+# %% ../Notebooks/00_layers.ipynb 93
 class GDN(nn.Module):
     """Generalized Divisive Normalization."""
     kernel_size: Union[int, Sequence[int]]
@@ -976,7 +976,7 @@ class GDN(nn.Module):
                         bias_init=self.bias_init)(inputs**self.alpha)
         return inputs / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
 
-# %% ../Notebooks/00_layers.ipynb 92
+# %% ../Notebooks/00_layers.ipynb 95
 class ClippedModule(nn.Module):
     layer: nn.Module
     a_min: float = -jnp.inf
@@ -989,7 +989,7 @@ class ClippedModule(nn.Module):
                  ):
         return jnp.clip(self.layer(inputs, **kwargs), a_min=self.a_min, a_max=self.a_max)
 
-# %% ../Notebooks/00_layers.ipynb 93
+# %% ../Notebooks/00_layers.ipynb 96
 class GDNStar(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
@@ -1012,7 +1012,7 @@ class GDNStar(nn.Module):
         coef = (jnp.clip(H(inputs_star**self.alpha), a_min=1e-5)**self.epsilon)/inputs_star
         return coef*inputs/denom
 
-# %% ../Notebooks/00_layers.ipynb 102
+# %% ../Notebooks/00_layers.ipynb 105
 class GDNStarSign(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
@@ -1037,7 +1037,7 @@ class GDNStarSign(nn.Module):
         coef = (jnp.clip(H(inputs_star**self.alpha), a_min=1e-5)**self.epsilon)/inputs_star
         return coef*inputs*inputs_sign/denom
 
-# %% ../Notebooks/00_layers.ipynb 110
+# %% ../Notebooks/00_layers.ipynb 113
 class GDNDisplacement(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
@@ -1065,7 +1065,7 @@ class GDNDisplacement(nn.Module):
         coef = 1.
         return coef*(inputs-inputs_mean)/denom
 
-# %% ../Notebooks/00_layers.ipynb 114
+# %% ../Notebooks/00_layers.ipynb 117
 class GDNStarDisplacement(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
@@ -1093,7 +1093,7 @@ class GDNStarDisplacement(nn.Module):
         # coef = 1.
         return coef*(inputs-inputs_mean)/denom
 
-# %% ../Notebooks/00_layers.ipynb 120
+# %% ../Notebooks/00_layers.ipynb 123
 class GDNStarRunning(nn.Module):
     """GDN variation where x^* is obtained as a running mean of the previously obtained values."""
 
@@ -1124,7 +1124,7 @@ class GDNStarRunning(nn.Module):
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95))/2
         return coef*inputs/denom
 
-# %% ../Notebooks/00_layers.ipynb 127
+# %% ../Notebooks/00_layers.ipynb 130
 class GDNStarDisplacementRunning(nn.Module):
     """GDN variation where x^* is obtained as a running mean of the previously obtained values."""
 
@@ -1157,7 +1157,7 @@ class GDNStarDisplacementRunning(nn.Module):
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95))/2
         return coef*(inputs-inputs_mean)/denom
 
-# %% ../Notebooks/00_layers.ipynb 135
+# %% ../Notebooks/00_layers.ipynb 138
 class FreqGaussian(nn.Module):
     """(1D) Gaussian interaction between frequencies."""
     use_bias: bool = False
@@ -1201,7 +1201,7 @@ class FreqGaussian(nn.Module):
     def gaussian(f, fmean, sigma, A=1):
         return A*jnp.exp(-((f-fmean)**2)/(2*sigma**2))
 
-# %% ../Notebooks/00_layers.ipynb 143
+# %% ../Notebooks/00_layers.ipynb 146
 def wrapTo180(angle, # Deg
               ):
     """Wraps an angle to the range [-180, 180]."""
@@ -1209,7 +1209,7 @@ def wrapTo180(angle, # Deg
     angle = (angle + 360) % 360        
     return jnp.where(angle>180, angle-360, angle)
 
-# %% ../Notebooks/00_layers.ipynb 145
+# %% ../Notebooks/00_layers.ipynb 148
 def process_angles(angle1, # Deg.
                    angle2, # Deg
                    ):
@@ -1218,7 +1218,7 @@ def process_angles(angle1, # Deg.
     dif2 = dif + 180
     return jnp.min(jnp.stack([jnp.abs(wrapTo180(dif)), jnp.abs(wrapTo180(dif2))]), axis=0)
 
-# %% ../Notebooks/00_layers.ipynb 147
+# %% ../Notebooks/00_layers.ipynb 150
 class OrientGaussian(nn.Module):
     """(1D) Gaussian interaction between orientations."""
     use_bias: bool = False
