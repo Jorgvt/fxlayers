@@ -1179,7 +1179,7 @@ class FreqGaussian(nn.Module):
                                             (len(fmean),))
         else: bias = 0.
         n_groups = inputs.shape[-1] // len(fmean)
-        kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=0)(fmean, fmean, sigma, 1)
+        kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=1)(fmean, fmean, sigma, 1)
         kernel = kernel[None,None,:,:]
         kernel = jnp.repeat(kernel, repeats=n_groups, axis=-1)
 
@@ -1241,7 +1241,7 @@ class OrientGaussian(nn.Module):
                                             (len(fmean),))
         else: bias = 0.
         n_groups = inputs.shape[-1] // len(theta_mean)
-        kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=0)(theta_mean, theta_mean, sigma, 1)
+        kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=1)(theta_mean, theta_mean, sigma, 1)
         kernel = kernel[None,None,:,:]
         kernel = jnp.repeat(kernel, repeats=n_groups, axis=-1)
 
