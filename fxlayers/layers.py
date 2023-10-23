@@ -503,6 +503,7 @@ class GaborLayer_(nn.Module):
 
     normalize_prob: bool = True
     normalize_energy: bool = False
+    zero_mean: bool = False
 
     @nn.compact
     def __call__(self,
@@ -547,10 +548,10 @@ class GaborLayer_(nn.Module):
             kernel = precalc_filters.value
         elif is_initialized and train: 
             x, y = self.generate_dominion()
-            kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,None,None,None,None,None,None), out_axes=0)
-            # kernel = jax.vmap(kernel, in_axes=(None,None,None,None,None,None,0,None,None,None,None,None,None), out_axes=0)
-            kernel = jax.vmap(kernel, in_axes=(None,None,None,None,None,None,None,0,0,None,None,None,None), out_axes=0)
-            kernel = jax.vmap(kernel, in_axes=(None,None,None,None,None,None,None,None,None,0,None,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, freq, theta, sigma_theta, self.phase, 1, self.normalize_prob, self.normalize_energy)
+            kernel = jax.vmap(self.gabor, in_axes=(None,None,None,None,0,0,0,None,None,None,None,None,None,None), out_axes=0)
+            # kernel = jax.vmap(kernel, in_axes=(None,None,None,None,None,None,0,None,None,None,None,None,None,None), out_axes=0)
+            kernel = jax.vmap(kernel, in_axes=(None,None,None,None,None,None,None,0,0,None,None,None,None,None), out_axes=0)
+            kernel = jax.vmap(kernel, in_axes=(None,None,None,None,None,None,None,None,None,0,None,None,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigmax, sigmay, freq, theta, sigma_theta, self.phase, 1, self.normalize_prob, self.normalize_energy, self.zero_mean)
             kernel = rearrange(kernel, "phases rots fs_sigmas kx ky -> kx ky (phases rots fs_sigmas)")
             kernel = repeat(kernel, "kx ky c_out -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=kernel.shape[-1])
             precalc_filters.value = kernel
@@ -577,7 +578,7 @@ class GaborLayer_(nn.Module):
             return outputs + bias
 
     @staticmethod
-    def gabor(x, y, xmean, ymean, sigmax, sigmay, freq, theta, sigma_theta, phase, A=1, normalize_prob=True, normalize_energy=False):
+    def gabor(x, y, xmean, ymean, sigmax, sigmay, freq, theta, sigma_theta, phase, A=1, normalize_prob=True, normalize_energy=False, zero_mean=False):
         x, y = x-xmean, y-ymean
         ## Obtain the normalization coeficient
         sigma_vector = jnp.array([sigmax, sigmay])
@@ -594,6 +595,7 @@ class GaborLayer_(nn.Module):
         y_r_1 = rotated_covariance[1,0] * x + rotated_covariance[1,1] * y
         distance = x * x_r_1 + y * y_r_1
         g = A_norm*jnp.exp(-distance/2) * jnp.cos(2*jnp.pi*freq*(x*jnp.cos(theta)+y*jnp.sin(theta)) + phase)
+        g = jnp.where(zero_mean, g - g.mean(), g)
         E_norm = jnp.where(normalize_energy, jnp.sqrt(jnp.sum(g**2)), 1.)
         return A*g/E_norm
 
