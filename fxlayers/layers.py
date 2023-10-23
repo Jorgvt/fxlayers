@@ -1181,7 +1181,7 @@ class FreqGaussian(nn.Module):
         n_groups = inputs.shape[-1] // len(fmean)
         kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=1)(fmean, fmean, sigma, 1)
         kernel = kernel[None,None,:,:]
-        kernel = jnp.repeat(kernel, repeats=n_groups, axis=-1)
+        kernel = jnp.tile(kernel, reps=n_groups)
 
         ## Add the batch dim if the input is a single element
         if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
@@ -1243,7 +1243,7 @@ class OrientGaussian(nn.Module):
         n_groups = inputs.shape[-1] // len(theta_mean)
         kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=1)(theta_mean, theta_mean, sigma, 1)
         kernel = kernel[None,None,:,:]
-        kernel = jnp.repeat(kernel, repeats=n_groups, axis=-1)
+        kernel = jnp.tile(kernel, reps=n_groups)
 
         ## Add the batch dim if the input is a single element
         if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
