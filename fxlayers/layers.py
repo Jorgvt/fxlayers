@@ -1667,7 +1667,51 @@ class FreqGaussian(nn.Module):
     def gaussian(f, fmean, sigma, A=1):
         return A*jnp.exp(-((f-fmean)**2)/(2*sigma**2))
 
-# %% ../Notebooks/00_layers.ipynb 166
+# %% ../Notebooks/00_layers.ipynb 159
+class FreqGaussianGamma(nn.Module):
+    """(1D) Gaussian interaction between frequencies optimizing gamma = 1/sigma instead of sigma."""
+    use_bias: bool = False
+    strides: int = 1
+    padding: str = "SAME"
+    bias_init: Callable = nn.initializers.zeros_init()
+
+    @nn.compact
+    def __call__(self,
+                 inputs,
+                 fmean,
+                 **kwargs,
+                 ):
+        gamma = self.param("gamma",
+                           k_array(0.4, arr=fmean),
+                           (inputs.shape[-1],))
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (len(fmean),))
+        else: bias = 0.
+        n_groups = inputs.shape[-1] // len(fmean)
+        kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=1)(fmean, fmean, gamma, 1)
+        kernel = kernel[None,None,:,:]
+        kernel = jnp.tile(kernel, reps=n_groups)
+
+        ## Add the batch dim if the input is a single element
+        if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
+        else: had_batch = True
+        outputs = lax.conv_general_dilated(
+                jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
+                jnp.transpose(kernel,[3,2,0,1]), # rhs = OIHW conv kernel tensor
+                (self.strides, self.strides),
+                self.padding,
+                feature_group_count=n_groups)
+        ## Move the channels back to the last dim
+        outputs = jnp.transpose(outputs, (0,2,3,1))
+        if not had_batch: outputs = outputs[0]
+        return outputs + bias
+
+    @staticmethod
+    def gaussian(f, fmean, gamma, A=1):
+        return A*jnp.exp(-((gamma**2)*(f-fmean)**2)/(2))
+
+# %% ../Notebooks/00_layers.ipynb 167
 def wrapTo180(angle, # Deg
               ):
     """Wraps an angle to the range [-180, 180]."""
@@ -1675,7 +1719,7 @@ def wrapTo180(angle, # Deg
     angle = (angle + 360) % 360        
     return jnp.where(angle>180, angle-360, angle)
 
-# %% ../Notebooks/00_layers.ipynb 168
+# %% ../Notebooks/00_layers.ipynb 169
 def process_angles(angle1, # Deg.
                    angle2, # Deg
                    ):
@@ -1684,7 +1728,7 @@ def process_angles(angle1, # Deg.
     dif2 = dif + 180
     return jnp.min(jnp.stack([jnp.abs(wrapTo180(dif)), jnp.abs(wrapTo180(dif2))]), axis=0)
 
-# %% ../Notebooks/00_layers.ipynb 170
+# %% ../Notebooks/00_layers.ipynb 171
 class OrientGaussian(nn.Module):
     """(1D) Gaussian interaction between orientations."""
     use_bias: bool = False
@@ -1728,3 +1772,48 @@ class OrientGaussian(nn.Module):
     @staticmethod
     def gaussian(theta, theta_mean, sigma, A=1):
         return A*jnp.exp(-(process_angles(theta, theta_mean)**2)/(2*sigma**2))
+
+# %% ../Notebooks/00_layers.ipynb 172
+class OrientGaussianGamma(nn.Module):
+    """(1D) Gaussian interaction between orientations optimizing gamma = 1/sigma instead of sigma."""
+    use_bias: bool = False
+    strides: int = 1
+    padding: str = "SAME"
+    bias_init: Callable = nn.initializers.zeros_init()
+
+    @nn.compact
+    def __call__(self,
+                 inputs,
+                 theta_mean,
+                 **kwargs,
+                 ):
+        gamma = self.param("gamma",
+                        #    equal_to([jnp.pi/4]*len(theta_mean)),
+                           equal_to([1/30]*len(theta_mean)),
+                           (inputs.shape[-1],))
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (len(fmean),))
+        else: bias = 0.
+        n_groups = inputs.shape[-1] // len(theta_mean)
+        kernel = jax.vmap(self.gaussian, in_axes=(None,0,0,None), out_axes=1)(theta_mean, theta_mean, gamma, 1)
+        kernel = kernel[None,None,:,:]
+        kernel = jnp.tile(kernel, reps=n_groups)
+
+        ## Add the batch dim if the input is a single element
+        if jnp.ndim(inputs) < 4: inputs = inputs[None,:]; had_batch = False
+        else: had_batch = True
+        outputs = lax.conv_general_dilated(
+                jnp.transpose(inputs,[0,3,1,2]),    # lhs = NCHW image tensor
+                jnp.transpose(kernel,[3,2,0,1]), # rhs = OIHW conv kernel tensor
+                (self.strides, self.strides),
+                self.padding,
+                feature_group_count=n_groups)
+        ## Move the channels back to the last dim
+        outputs = jnp.transpose(outputs, (0,2,3,1))
+        if not had_batch: outputs = outputs[0]
+        return outputs + bias
+
+    @staticmethod
+    def gaussian(theta, theta_mean, gamma, A=1):
+        return A*jnp.exp(-((gamma**2)*process_angles(theta, theta_mean)**2)/(2))
