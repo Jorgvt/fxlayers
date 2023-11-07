@@ -1682,7 +1682,7 @@ class FreqGaussianGamma(nn.Module):
                  **kwargs,
                  ):
         gamma = self.param("gamma",
-                           k_array(0.4, arr=fmean),
+                           k_array(1/0.4, arr=fmean),
                            (inputs.shape[-1],))
         if self.use_bias: bias = self.param("bias",
                                             self.bias_init,
@@ -1711,7 +1711,7 @@ class FreqGaussianGamma(nn.Module):
     def gaussian(f, fmean, gamma, A=1):
         return A*jnp.exp(-((gamma**2)*(f-fmean)**2)/(2))
 
-# %% ../Notebooks/00_layers.ipynb 167
+# %% ../Notebooks/00_layers.ipynb 169
 def wrapTo180(angle, # Deg
               ):
     """Wraps an angle to the range [-180, 180]."""
@@ -1719,7 +1719,7 @@ def wrapTo180(angle, # Deg
     angle = (angle + 360) % 360        
     return jnp.where(angle>180, angle-360, angle)
 
-# %% ../Notebooks/00_layers.ipynb 169
+# %% ../Notebooks/00_layers.ipynb 171
 def process_angles(angle1, # Deg.
                    angle2, # Deg
                    ):
@@ -1728,7 +1728,7 @@ def process_angles(angle1, # Deg.
     dif2 = dif + 180
     return jnp.min(jnp.stack([jnp.abs(wrapTo180(dif)), jnp.abs(wrapTo180(dif2))]), axis=0)
 
-# %% ../Notebooks/00_layers.ipynb 171
+# %% ../Notebooks/00_layers.ipynb 173
 class OrientGaussian(nn.Module):
     """(1D) Gaussian interaction between orientations."""
     use_bias: bool = False
@@ -1773,7 +1773,7 @@ class OrientGaussian(nn.Module):
     def gaussian(theta, theta_mean, sigma, A=1):
         return A*jnp.exp(-(process_angles(theta, theta_mean)**2)/(2*sigma**2))
 
-# %% ../Notebooks/00_layers.ipynb 172
+# %% ../Notebooks/00_layers.ipynb 174
 class OrientGaussianGamma(nn.Module):
     """(1D) Gaussian interaction between orientations optimizing gamma = 1/sigma instead of sigma."""
     use_bias: bool = False
