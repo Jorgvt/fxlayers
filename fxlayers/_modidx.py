@@ -166,6 +166,8 @@ d = { 'settings': { 'branch': 'main',
                                                                                    'fxlayers/layers.py'),
                                  'fxlayers.layers.freqspace': ('layers.html#freqspace', 'fxlayers/layers.py'),
                                  'fxlayers.layers.metefot': ('layers.html#metefot', 'fxlayers/layers.py'),
+                                 'fxlayers.layers.pad_same_from_kernel_size': ( 'layers.html#pad_same_from_kernel_size',
+                                                                                'fxlayers/layers.py'),
                                  'fxlayers.layers.process_angles': ('layers.html#process_angles', 'fxlayers/layers.py'),
                                  'fxlayers.layers.spatio_temp_freq_domain': ('layers.html#spatio_temp_freq_domain', 'fxlayers/layers.py'),
                                  'fxlayers.layers.wrapTo180': ('layers.html#wrapto180', 'fxlayers/layers.py')}}}

@@ -4,7 +4,7 @@
 __all__ = ['GaussianLayer', 'GaborLayer', 'CenterSurroundLogSigma', 'CenterSurroundLogSigmaK', 'GaborLayer_', 'JamesonHurvich',
            'CSFFourier', 'GDN', 'GDNStar', 'GDNStarSign', 'GDNDisplacement', 'GDNStarDisplacement', 'GDNStarRunning',
            'GDNStarDisplacementRunning', 'FreqGaussian', 'OrientGaussian', 'GDNGaussianStarRunning',
-           'GDNSpatioFreqOrient']
+           'GDNSpatioFreqOrient', 'pad_same_from_kernel_size']
 
 # %% ../Notebooks/00_layers.ipynb 4
 import jax
@@ -2139,3 +2139,16 @@ class GDNSpatioFreqOrient(nn.Module):
         if is_initialized and train:
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95, axis=(0,1,2)))/2
         return coef * inputs / (jnp.clip(denom+bias, a_min=1e-5)**self.epsilon + self.eps)
+
+# %% ../Notebooks/00_layers.ipynb 199
+def pad_same_from_kernel_size(inputs, # Input to be padded.
+                              kernel_size: int, # Kernel size.
+                              mode: str, # Convolution type.
+                              ):
+    """Pads `inputs` so that a convolution of `kernel_size` maintains the same size after the operation."""
+    return jnp.pad(inputs,
+                   [[0,0],
+                    [(kernel_size-1)//2, (kernel_size-1)//2],
+                    [(kernel_size-1)//2, (kernel_size-1)//2],
+                    [0,0]],
+                    mode=mode)
