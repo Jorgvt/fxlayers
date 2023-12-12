@@ -2,9 +2,9 @@
 
 # %% auto 0
 __all__ = ['GaussianLayer', 'GaborLayer', 'CenterSurroundLogSigma', 'CenterSurroundLogSigmaK', 'GaborLayer_', 'JamesonHurvich',
-           'CSFFourier', 'pad_same_from_kernel_size', 'GDN', 'GDNGaussianGamma', 'GDNStar', 'GDNStarSign',
-           'GDNDisplacement', 'GDNStarDisplacement', 'GDNStarRunning', 'GDNStarDisplacementRunning', 'FreqGaussian',
-           'OrientGaussian', 'GDNGaussianStarRunning', 'GDNSpatioFreqOrient']
+           'CSFFourier', 'pad_same_from_kernel_size', 'GDN', 'GDNGaussian', 'GDNStar', 'GDNStarSign', 'GDNDisplacement',
+           'GDNStarDisplacement', 'GDNStarRunning', 'GDNStarDisplacementRunning', 'FreqGaussian', 'OrientGaussian',
+           'GDNGaussianStarRunning', 'GDNSpatioFreqOrient']
 
 # %% ../Notebooks/00_layers.ipynb 4
 import jax
@@ -1689,8 +1689,8 @@ class GDN(nn.Module):
         return inputs / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
 
 # %% ../Notebooks/00_layers.ipynb 125
-class GDNGaussianGamma(nn.Module):
-    """Generalized Divisive Normalization."""
+class GDNGaussian(nn.Module):
+    """Generalized Divisive Normalization with a Gaussian kernel."""
     kernel_size: Union[int, Sequence[int]]
     strides: int = 1
     padding: str = "SAME"
