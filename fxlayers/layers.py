@@ -1702,6 +1702,8 @@ class GDNGaussian(nn.Module):
     alpha: float = 2.
     epsilon: float = 1/2 # Exponential of the denominator
     eps: float = 1e-6 # Numerical stability in the denominator
+    normalize_prob: bool = False
+    normalize_energy: bool = True
 
     @nn.compact
     def __call__(self,
@@ -1717,7 +1719,9 @@ class GDNGaussian(nn.Module):
                                    fs=fs,
                                    xmean=self.kernel_size/fs/2,
                                    ymean=self.kernel_size/fs/2,
-                                   use_bias=True)(pad_same_from_kernel_size(inputs**self.alpha, kernel_size=self.kernel_size, mode=self.padding), **kwargs)
+                                   use_bias=True,
+                                   normalize_prob=self.normalize_prob,
+                                   normalize_energy=self.normalize_energy)(pad_same_from_kernel_size(inputs**self.alpha, kernel_size=self.kernel_size, mode=self.padding), **kwargs)
         return inputs / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
 
 # %% ../Notebooks/00_layers.ipynb 127
