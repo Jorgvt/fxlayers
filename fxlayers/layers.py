@@ -1716,7 +1716,8 @@ class GDNGaussian(nn.Module):
                                    feature_group_count=inputs.shape[-1] if self.apply_independently else 1,
                                    fs=fs,
                                    xmean=self.kernel_size/fs/2,
-                                   ymean=self.kernel_size/fs/2)(pad_same_from_kernel_size(inputs**self.alpha, kernel_size=self.kernel_size, mode=self.padding), **kwargs)
+                                   ymean=self.kernel_size/fs/2,
+                                   use_bias=True)(pad_same_from_kernel_size(inputs**self.alpha, kernel_size=self.kernel_size, mode=self.padding), **kwargs)
         return inputs / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
 
 # %% ../Notebooks/00_layers.ipynb 127
