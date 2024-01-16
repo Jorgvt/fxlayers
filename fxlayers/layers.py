@@ -5,7 +5,7 @@ __all__ = ['GaussianLayer', 'GaborLayer', 'CenterSurroundLogSigma', 'CenterSurro
            'GaborLayerGammaRepeat', 'JamesonHurvich', 'CSFFourier', 'pad_same_from_kernel_size', 'GDN', 'GDNGaussian',
            'GDNStar', 'GDNStarSign', 'GDNDisplacement', 'GDNStarDisplacement', 'GDNStarRunning',
            'GDNStarDisplacementRunning', 'FreqGaussian', 'OrientGaussian', 'GDNGaussianStarRunning',
-           'GDNSpatioFreqOrient']
+           'GDNSpatioFreqOrient', 'GaborGammaFourier']
 
 # %% ../Notebooks/00_layers.ipynb 4
 import jax
@@ -2312,3 +2312,60 @@ class GDNSpatioFreqOrient(nn.Module):
         if is_initialized and train:
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95, axis=(0,1,2)))/2
         return coef * inputs / (jnp.clip(denom+bias, a_min=1e-5)**self.epsilon + self.eps)
+
+# %% ../Notebooks/00_layers.ipynb 212
+class GaborGammaFourier(nn.Module):
+    features: int
+    fs: int  = 1
+    use_bias: bool = False
+
+    @nn.compact
+    def __call__(self,
+                 inputs,
+                 train=False,
+                 **kwargs):
+        freq = self.param("freq",
+                          nn.initializers.uniform(scale=self.fs/2),
+                          (self.features,))
+        gamma = self.param("gamma",
+                        #    k_array(k=0.5, arr=freq),
+                          nn.initializers.uniform(scale=1.),
+                        #    nn.initializers.ones_init(),
+                           (self.features,))
+        theta = self.param("theta",
+                           nn.initializers.uniform(scale=jnp.pi),
+                           (self.features,))
+        if self.use_bias: bias = self.param("bias",
+                                            self.bias_init,
+                                            (self.features,))
+        else: bias = 0.
+
+        fx, fy = self.generate_dominion(inputs.shape[1:-1], fs=self.fs)
+        kernel = jax.vmap(self.gaussians, in_axes=(None,None,0,None,0,0), out_axes=-1)(fx, fy, freq, 0., gamma, theta)
+        ## Add empty dims for broadcasting
+        outputs = inputs[...,None] * kernel[None,...,None,:]
+        ## Sum the broadcasted dim
+        outputs = outputs.sum(axis=-2)
+        ## Add bias (or not)
+        return outputs + bias
+    
+    @staticmethod
+    def gaussians(fx, fy, fxm, fym, gamma, theta):
+        def gaussian(fx, fy, fxm, fym, gamma):
+            return jnp.exp(-(((fx-fxm)**2 + (fy-fym)**2)*gamma**2)/2)
+        def rotate_dom(fx, fy, theta):
+            fx_r = fx*jnp.cos(theta) - fy*jnp.sin(theta)
+            fy_r = fx*jnp.sin(theta) + fy*jnp.cos(theta)
+            return fx_r, fy_r
+        fxm_r, fym_r = rotate_dom(fxm, fym, theta)
+        
+        return gaussian(fx, fy, fxm_r, fym_r, gamma) + gaussian(fx, fy, -fxm_r, -fym_r, gamma)
+
+    @staticmethod
+    def generate_dominion(input_size, fs):
+        return jnp.meshgrid(jnp.linspace(-fs/2,fs/2,num=input_size[1]), jnp.linspace(-fs/2,fs/2,num=input_size[0]))
+    
+    def return_kernel(self, params, c_in, kernel_shape):
+        fx, fy = self.generate_dominion(kernel_shape, fs=self.fs)
+        kernel = jax.vmap(self.gaussians, in_axes=(None,None,0,None,0,0), out_axes=-1)(fx, fy, params["freq"], 0., params["gamma"], params["theta"])
+        return kernel
