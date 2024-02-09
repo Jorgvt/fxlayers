@@ -1798,6 +1798,7 @@ class GDN(nn.Module):
     alpha: float = 2.
     epsilon: float = 1/2 # Exponential of the denominator
     eps: float = 1e-6 # Numerical stability in the denominator
+    return_coef: bool = False
 
     @nn.compact
     def __call__(self,
@@ -1810,7 +1811,11 @@ class GDN(nn.Module):
                         feature_group_count=inputs.shape[-1] if self.apply_independently else 1,
                         kernel_init=self.kernel_init, 
                         bias_init=self.bias_init)(inputs**self.alpha)
-        return inputs / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
+        coef = 1 / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
+        if self.return_coef:
+            return coef*inputs, coef
+        else:
+            return coef*inputs
 
 # %% ../Notebooks/00_layers.ipynb 132
 class GDNGaussian(nn.Module):
@@ -1828,6 +1833,7 @@ class GDNGaussian(nn.Module):
     eps: float = 1e-6 # Numerical stability in the denominator
     normalize_prob: bool = False
     normalize_energy: bool = True
+    return_coef: bool = False
 
     @nn.compact
     def __call__(self,
@@ -1846,7 +1852,11 @@ class GDNGaussian(nn.Module):
                                    use_bias=True,
                                    normalize_prob=self.normalize_prob,
                                    normalize_energy=self.normalize_energy)(pad_same_from_kernel_size(inputs**self.alpha, kernel_size=self.kernel_size, mode=self.padding), **kwargs)
-        return inputs / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
+        coef = 1 / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
+        if self.return_coef:
+            return coef*inputs, coef
+        else:
+            return coef*inputs
 
 # %% ../Notebooks/00_layers.ipynb 134
 class ClippedModule(nn.Module):
@@ -2318,6 +2328,7 @@ class GaborGammaFourier(nn.Module):
     features: int
     fs: int  = 1
     use_bias: bool = False
+    norm_energy: bool = True
 
     @nn.compact
     def __call__(self,
@@ -2342,6 +2353,8 @@ class GaborGammaFourier(nn.Module):
 
         fx, fy = self.generate_dominion(inputs.shape[1:-1], fs=self.fs)
         kernel = jax.vmap(self.gaussians, in_axes=(None,None,0,None,0,0), out_axes=-1)(fx, fy, freq, 0., gamma, theta)
+        if self.norm_energy:
+            kernel = kernel / (kernel**2).sum(axis=(1,2), keepdims=True)**(1/2)
         ## Add empty dims for broadcasting
         outputs = inputs[...,None] * kernel[None,...,None,:]
         ## Sum the broadcasted dim
