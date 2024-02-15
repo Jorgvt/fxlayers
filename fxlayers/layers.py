@@ -1347,10 +1347,10 @@ class GaborLayerGammaRepeat(nn.Module):
                           nn.initializers.uniform(scale=self.fs/2),
                           (self.features,))
         gammax = self.param("gammax",
-                           k_array(k=0.5, arr=freq),
+                           k_array(k=1., arr=1/(freq**0.8)),
                            (self.features,))
         gammay = self.param("gammay",
-                            equal_to(gammax*1.2),
+                            equal_to(gammax*0.8),
                             (self.features,))
         theta = self.param("theta",
                            nn.initializers.uniform(scale=jnp.pi),
