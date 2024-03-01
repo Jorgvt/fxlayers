@@ -1820,10 +1820,10 @@ class GDN(nn.Module):
 # %% ../Notebooks/00_layers.ipynb 132
 class GDNGamma(nn.Module):
     """Generalized Divisive Normalization."""
-    kernel_size: Union[int, Sequence[int]]
-    strides: int = 1
-    padding: str = "SAME"
-    apply_independently: bool = False
+    # kernel_size: Union[int, Sequence[int]]
+    # strides: int = 1
+    # padding: str = "SAME"
+    # apply_independently: bool = False
     # kernel_init: Callable = nn.initializers.lecun_normal()
     kernel_init: Callable = mean()
     bias_init: Callable = nn.initializers.ones_init()
