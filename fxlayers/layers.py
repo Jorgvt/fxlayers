@@ -2,8 +2,8 @@
 
 # %% auto 0
 __all__ = ['GaussianLayer', 'GaborLayer', 'CenterSurroundLogSigma', 'CenterSurroundLogSigmaK', 'GaborLayer_',
-           'GaborLayerGammaRepeat', 'JamesonHurvich', 'CSFFourier', 'pad_same_from_kernel_size', 'GDN', 'GDNGaussian',
-           'GDNStar', 'GDNStarSign', 'GDNDisplacement', 'GDNStarDisplacement', 'GDNStarRunning',
+           'GaborLayerGammaRepeat', 'JamesonHurvich', 'CSFFourier', 'pad_same_from_kernel_size', 'GDN', 'GDNGamma',
+           'GDNGaussian', 'GDNStar', 'GDNStarSign', 'GDNDisplacement', 'GDNStarDisplacement', 'GDNStarRunning',
            'GDNStarDisplacementRunning', 'FreqGaussian', 'OrientGaussian', 'GDNGaussianStarRunning',
            'GDNSpatioFreqOrient', 'GaborGammaFourier']
 
@@ -1818,7 +1818,7 @@ class GDN(nn.Module):
             return coef*inputs
 
 # %% ../Notebooks/00_layers.ipynb 132
-class GDN(nn.Module):
+class GDNGamma(nn.Module):
     """Generalized Divisive Normalization."""
     kernel_size: Union[int, Sequence[int]]
     strides: int = 1
