@@ -1220,14 +1220,8 @@ class GaborLayerGamma_(nn.Module):
         freq = self.param("freq",
                            freq_scales_init(n_scales=self.n_scales, fs=self.fs),
                            (self.n_scales,))
-        sigmax = self.param("sigmax",
-                           k_array(k=0.4, arr=freq),
-                           (self.n_scales,))
         gammax = self.param("gammax",
                            k_array(k=0.4, arr=1/freq),
-                           (self.n_scales,))
-        sigmay = self.param("sigmay",
-                           equal_to(1.5*sigmax),
                            (self.n_scales,))
         gammay = self.param("gammay",
                            k_array(k=0.4, arr=1/freq),
@@ -1235,9 +1229,12 @@ class GaborLayerGamma_(nn.Module):
         theta = self.param("theta",
                            linspace(start=0, stop=jnp.pi, num=self.n_orientations),
                            (self.n_orientations,))
-        sigma_theta = self.param("sigma_theta",
-                           linspace(start=0, stop=jnp.pi, num=self.n_orientations),
-                           (self.n_orientations,))
+        # sigma_theta = self.param("sigma_theta",
+        #                    linspace(start=0, stop=jnp.pi, num=self.n_orientations),
+        #                    (self.n_orientations,))
+        sigma_thetha = self.param("sigma_theta",
+                                  equal_to(theta),
+                                  (self.n_orientations,))
         if self.use_bias: bias = self.param("bias",
                                             self.bias_init,
                                             (features,))
