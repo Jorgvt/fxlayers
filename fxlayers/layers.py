@@ -1235,7 +1235,7 @@ class GaborLayerGamma_(nn.Module):
         # sigma_theta = self.param("sigma_theta",
         #                    linspace(start=0, stop=jnp.pi, num=self.n_orientations),
         #                    (self.n_orientations,))
-        sigma_thetha = self.param("sigma_theta",
+        sigma_theta = self.param("sigma_theta",
                                   equal_to(theta),
                                   (self.n_orientations,))
         if self.use_bias: bias = self.param("bias",
