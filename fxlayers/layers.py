@@ -1221,11 +1221,14 @@ class GaborLayerGamma_(nn.Module):
                            freq_scales_init(n_scales=self.n_scales, fs=self.fs),
                            (self.n_scales,))
         gammax = self.param("gammax",
-                           k_array(k=0.4, arr=1/freq),
+                           k_array(k=0.4, arr=1/(freq**0.8)),
                            (self.n_scales,))
+        # gammay = self.param("gammay",
+        #                    k_array(k=0.4, arr=1/(freq**0.8)),
+        #                    (self.n_scales,))
         gammay = self.param("gammay",
-                           k_array(k=0.4, arr=1/freq),
-                           (self.n_scales,))
+                            equal_to(gammax*0.8),
+                            (self.n_scales,))
         theta = self.param("theta",
                            linspace(start=0, stop=jnp.pi, num=self.n_orientations),
                            (self.n_orientations,))
