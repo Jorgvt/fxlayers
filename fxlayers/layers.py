@@ -812,7 +812,7 @@ class GaborLayer_(nn.Module):
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
-    phase = jnp.array([0., jnp.pi/2.])
+    phase: Sequence[float] = jnp.array([0., jnp.pi/2.])
 
     normalize_prob: bool = True
     normalize_energy: bool = False
@@ -943,7 +943,7 @@ class GaborLayerLogSigma_(nn.Module):
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
-    phase = jnp.array([0., jnp.pi/2.])
+    phase: Sequence[float] = jnp.array([0., jnp.pi/2.])
 
     normalize_prob: bool = True
     normalize_energy: bool = False
@@ -1198,7 +1198,7 @@ class GaborLayerGamma_(nn.Module):
     xmean: float = 0.5
     ymean: float = 0.5
     fs: float = 1 # Sampling frequency
-    phase = jnp.array([0., jnp.pi/2.])
+    phase: Sequence[float] = jnp.array([0., jnp.pi/2.])
 
     normalize_prob: bool = True
     normalize_energy: bool = False
