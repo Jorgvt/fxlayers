@@ -1783,7 +1783,7 @@ def pad_same_from_kernel_size(inputs, # Input to be padded.
                               mode: str, # Convolution type.
                               ):
     """Pads `inputs` so that a convolution of `kernel_size` maintains the same size after the operation."""
-    if isinstance(1, int): kernel_size = (kernel_size, kernel_size)
+    if isinstance(kernel_size, int): kernel_size = (kernel_size, kernel_size)
     return jnp.pad(inputs,
                    [[0,0],
                     [(kernel_size[0]-1)//2, (kernel_size[0]-1)//2],
