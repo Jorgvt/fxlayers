@@ -220,7 +220,7 @@ class GaussianLayerGamma(nn.Module):
             kernel = precalc_filters.value
         elif is_initialized and train: 
             x, y = self.generate_dominion()
-            kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, gamma, A, self.normalize_prob, self.normalize_energy, self.normalize_sum)
+            kernel = jax.vmap(self.gaussian, in_axes=(None,None,None,None,0,0,None,None,None), out_axes=0)(x, y, self.xmean, self.ymean, gamma, A, self.normalize_prob, self.normalize_energy, self.normalize_sum)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1]//self.feature_group_count, c_out=self.features)
             precalc_filters.value = kernel
@@ -2003,7 +2003,7 @@ class GDNControl(nn.Module):
     normalize_prob: bool = False
     normalize_energy: bool = False
     normalize_sum: bool = True
-    K: Sequence[float] = 1.
+    # K: Sequence[float] = 1.
 
     @nn.compact
     def __call__(self,
@@ -2013,19 +2013,26 @@ class GDNControl(nn.Module):
                  train=False,
                  **kwargs,
                 ):
-        is_initialized = self.has_variable("batch_stats", "inputs_star")
-        inputs_star = self.variable("batch_stats", "inputs_star", jnp.ones, (inputs.shape))
-        if is_initialized and train:
+        is_initialized_star = self.has_variable("batch_stats", "inputs_star")
+        is_initialized_K = self.has_variable("batch_stats", "K")
+        inputs_star = self.variable("batch_stats", "inputs_star", jnp.ones, (1,1,1,inputs.shape[-1]))
+        K = self.variable("batch_stats", "K", jnp.ones, (1,1,1,inputs.shape[-1]))
+    
+        if is_initialized_star and train:
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95, axis=(1,2), keepdims=True))/2
+
+        if is_initialized_K and train:
+            K.value = (K.value + jnp.quantile(jnp.abs(inputs), q=0.95, axis=(1,2), keepdims=True))/2
+
         H = GDNSpatioChromaFreqOrient(self.kernel_size, fs=self.fs, apply_independently=self.apply_independently, padding="symmetric",
                                       normalize_prob=self.normalize_prob, normalize_energy=self.normalize_energy, normalize_sum=self.normalize_sum,
                                       alpha=self.alpha, epsilon=self.epsilon)
         # inputs_star = jnp.abs(inputs).mean(axis=(0,1,2), keepdims=True)
         rh = H(inputs, fmean, theta_mean, train=train)
         lh = H(inputs_star.value, fmean, theta_mean, train=train)
-        return (self.K/lh)*rh
+        return (K.value/lh)*rh
 
-# %% ../Notebooks/00_layers.ipynb 198
+# %% ../Notebooks/00_layers.ipynb 206
 class GDNStarDisplacement(nn.Module):
     """GDN variation that forces the output to be 1 when the input is x^*"""
 
@@ -2053,7 +2060,7 @@ class GDNStarDisplacement(nn.Module):
         # coef = 1.
         return coef*(inputs-inputs_mean)/denom
 
-# %% ../Notebooks/00_layers.ipynb 204
+# %% ../Notebooks/00_layers.ipynb 212
 class GDNStarRunning(nn.Module):
     """GDN variation where x^* is obtained as a running mean of the previously obtained values."""
 
@@ -2084,7 +2091,7 @@ class GDNStarRunning(nn.Module):
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95))/2
         return coef*inputs/denom
 
-# %% ../Notebooks/00_layers.ipynb 211
+# %% ../Notebooks/00_layers.ipynb 219
 class GDNStarDisplacementRunning(nn.Module):
     """GDN variation where x^* is obtained as a running mean of the previously obtained values."""
 
@@ -2117,7 +2124,7 @@ class GDNStarDisplacementRunning(nn.Module):
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95))/2
         return coef*(inputs-inputs_mean)/denom
 
-# %% ../Notebooks/00_layers.ipynb 219
+# %% ../Notebooks/00_layers.ipynb 227
 class FreqGaussian(nn.Module):
     """(1D) Gaussian interaction between frequencies."""
     use_bias: bool = False
@@ -2161,7 +2168,7 @@ class FreqGaussian(nn.Module):
     def gaussian(f, fmean, sigma, A=1):
         return A*jnp.exp(-((f-fmean)**2)/(2*sigma**2))
 
-# %% ../Notebooks/00_layers.ipynb 220
+# %% ../Notebooks/00_layers.ipynb 228
 class FreqGaussianGamma(nn.Module):
     """(1D) Gaussian interaction between frequencies optimizing gamma = 1/sigma instead of sigma."""
     use_bias: bool = False
@@ -2205,7 +2212,7 @@ class FreqGaussianGamma(nn.Module):
     def gaussian(f, fmean, gamma, A=1):
         return A*jnp.exp(-((gamma**2)*(f-fmean)**2)/(2))
 
-# %% ../Notebooks/00_layers.ipynb 230
+# %% ../Notebooks/00_layers.ipynb 238
 def wrapTo180(angle, # Deg
               ):
     """Wraps an angle to the range [-180, 180]."""
@@ -2213,7 +2220,7 @@ def wrapTo180(angle, # Deg
     angle = (angle + 360) % 360        
     return jnp.where(angle>180, angle-360, angle)
 
-# %% ../Notebooks/00_layers.ipynb 232
+# %% ../Notebooks/00_layers.ipynb 240
 def process_angles(angle1, # Deg.
                    angle2, # Deg
                    ):
@@ -2222,7 +2229,7 @@ def process_angles(angle1, # Deg.
     dif2 = dif + 180
     return jnp.min(jnp.stack([jnp.abs(wrapTo180(dif)), jnp.abs(wrapTo180(dif2))]), axis=0)
 
-# %% ../Notebooks/00_layers.ipynb 234
+# %% ../Notebooks/00_layers.ipynb 242
 class OrientGaussian(nn.Module):
     """(1D) Gaussian interaction between orientations."""
     use_bias: bool = False
@@ -2267,7 +2274,7 @@ class OrientGaussian(nn.Module):
     def gaussian(theta, theta_mean, sigma, A=1):
         return A*jnp.exp(-(process_angles(theta, theta_mean)**2)/(2*sigma**2))
 
-# %% ../Notebooks/00_layers.ipynb 235
+# %% ../Notebooks/00_layers.ipynb 243
 class OrientGaussianGamma(nn.Module):
     """(1D) Gaussian interaction between orientations optimizing gamma = 1/sigma instead of sigma."""
     use_bias: bool = False
@@ -2312,7 +2319,7 @@ class OrientGaussianGamma(nn.Module):
     def gaussian(theta, theta_mean, gamma, A=1):
         return A*jnp.exp(-((gamma**2)*process_angles(theta, theta_mean)**2)/(2))
 
-# %% ../Notebooks/00_layers.ipynb 249
+# %% ../Notebooks/00_layers.ipynb 257
 class GDNGaussianStarRunning(nn.Module):
     """GDN variation where x^* is obtained as a running mean of the previously obtained values."""
 
@@ -2346,7 +2353,7 @@ class GDNGaussianStarRunning(nn.Module):
         
         return coef*inputs/denom
 
-# %% ../Notebooks/00_layers.ipynb 251
+# %% ../Notebooks/00_layers.ipynb 259
 class GDNSpatioFreqOrient(nn.Module):
     """Generalized Divisive Normalization."""
     kernel_size: Union[int, Sequence[int]]
@@ -2401,7 +2408,7 @@ class GDNSpatioFreqOrient(nn.Module):
             inputs_star.value = (inputs_star.value + jnp.quantile(jnp.abs(inputs), q=0.95, axis=(0,1,2)))/2
         return coef * inputs / (jnp.clip(denom+bias, a_min=1e-5)**self.epsilon + self.eps)
 
-# %% ../Notebooks/00_layers.ipynb 254
+# %% ../Notebooks/00_layers.ipynb 262
 class GaborGammaFourier(nn.Module):
     features: int
     fs: int  = 1
