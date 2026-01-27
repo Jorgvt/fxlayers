@@ -748,11 +748,9 @@ class CenterSurroundLogSigmaK(nn.Module):
             kernel = precalc_filters.value
         elif is_initialized and train: 
             x, y = self.generate_dominion()
-            kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, sigma2, A, self.normalize_prob, self.normalize_energy)
+            kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, sigma2, A, self.normalize_prob, self.normalize_energy, self.normalize_sum)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
-            A_sum = jnp.where(self.normalize_sum, kernel.sum(axis=(0,1), keepdims=True), 1.)
-            kernel = kernel/A_sum
             precalc_filters.value = kernel
         else:
             kernel = precalc_filters.value
@@ -776,7 +774,7 @@ class CenterSurroundLogSigmaK(nn.Module):
     #     return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
     
     @staticmethod
-    def center_surround(x, y, xmean, ymean, sigma, sigma2, A=1, normalize_prob=True, normalize_energy=False):
+    def center_surround(x, y, xmean, ymean, sigma, sigma2, A=1, normalize_prob=True, normalize_energy=False, normalize_sum=False):
         def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
             A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*sigma**2), 1.)
             return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
@@ -784,6 +782,8 @@ class CenterSurroundLogSigmaK(nn.Module):
         g2 = gaussian(x, y, xmean, ymean, sigma2, 1, normalize_prob)
         g = g1 - g2
         E_norm = jnp.where(normalize_energy, jnp.sqrt(jnp.sum(g**2)), 1.)
+        A_sum = jnp.where(normalize_sum, g.sum(axis=(0,1), keepdims=True), 1.)
+        g = g/A_sum
         return A*g/E_norm
     
     # @staticmethod
