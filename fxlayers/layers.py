@@ -717,6 +717,7 @@ class CenterSurroundLogSigmaK(nn.Module):
     fs: float = 1 # Sampling frequency
     normalize_prob: bool = True
     normalize_energy: bool = True
+    normalize_sum: bool = True
 
     @nn.compact
     def __call__(self,
@@ -750,6 +751,8 @@ class CenterSurroundLogSigmaK(nn.Module):
             kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, sigma2, A, self.normalize_prob, self.normalize_energy)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
+            A_sum = jnp.where(self.normalize_sum, kernel.sum(axis=(0,1), keepdims=True), 1.)
+            kernel = kernel/A_sum
             precalc_filters.value = kernel
         else:
             kernel = precalc_filters.value
