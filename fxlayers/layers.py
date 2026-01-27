@@ -1877,6 +1877,7 @@ class GDNGaussian(nn.Module):
     eps: float = 1e-6 # Numerical stability in the denominator
     normalize_prob: bool = False
     normalize_energy: bool = True
+    normalize_sum: bool = False
     return_coef: bool = False
 
     @nn.compact
@@ -1895,7 +1896,8 @@ class GDNGaussian(nn.Module):
                                    ymean=self.kernel_size/fs/2,
                                    use_bias=True,
                                    normalize_prob=self.normalize_prob,
-                                   normalize_energy=self.normalize_energy)(pad_same_from_kernel_size(inputs**self.alpha, kernel_size=self.kernel_size, mode=self.padding), **kwargs)
+                                   normalize_energy=self.normalize_energy,
+                                   normalize_sum=self.normalize_sum)(pad_same_from_kernel_size(inputs**self.alpha, kernel_size=self.kernel_size, mode=self.padding), **kwargs)
         coef = 1 / (jnp.clip(denom, a_min=1e-5)**self.epsilon + self.eps)
         if self.return_coef:
             return coef*inputs, coef
