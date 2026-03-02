@@ -718,7 +718,7 @@ class CenterSurroundLogSigmaK(nn.Module):
     normalize_prob: bool = True
     normalize_energy: bool = True
     normalize_sum: bool = True
-    substaction_factor: float = 1.
+    substraction_factor: float = 1.
 
     @nn.compact
     def __call__(self,
@@ -749,7 +749,7 @@ class CenterSurroundLogSigmaK(nn.Module):
             kernel = precalc_filters.value
         elif is_initialized and train: 
             x, y = self.generate_dominion()
-            kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None,None,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, sigma2, A, self.normalize_prob, self.normalize_energy, self.normalize_sum, self.substaction_factor)
+            kernel = jax.vmap(self.center_surround, in_axes=(None,None,None,None,0,0,0,None,None,None,None), out_axes=0)(x, y, self.xmean, self.ymean, sigma, sigma2, A, self.normalize_prob, self.normalize_energy, self.normalize_sum, self.substraction_factor)
             # kernel = jnp.reshape(kernel, newshape=(self.kernel_size, self.kernel_size, inputs.shape[-1], self.features))
             kernel = rearrange(kernel, "(c_in c_out) kx ky -> kx ky c_in c_out", c_in=inputs.shape[-1], c_out=self.features)
             precalc_filters.value = kernel
@@ -775,16 +775,18 @@ class CenterSurroundLogSigmaK(nn.Module):
     #     return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
     
     @staticmethod
-    def center_surround(x, y, xmean, ymean, sigma, sigma2, A=1, normalize_prob=True, normalize_energy=False, normalize_sum=False, substaction_factor=1.):
-        def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True):
+    def center_surround(x, y, xmean, ymean, sigma, sigma2, A=1, normalize_prob=True, normalize_energy=False, normalize_sum=False, substraction_factor=1.):
+        def gaussian(x, y, xmean, ymean, sigma, A=1, normalize_prob=True, normalize_sum=False):
             A_norm = jnp.where(normalize_prob, 1/(2*jnp.pi*sigma**2), 1.)
-            return A*A_norm*jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
-        g1 = gaussian(x, y, xmean, ymean, sigma, 1, normalize_prob)
-        g2 = gaussian(x, y, xmean, ymean, sigma2, 1, normalize_prob)
-        g = g1 - substaction_factor*g2
+            g = jnp.exp(-((x-xmean)**2 + (y-ymean)**2)/(2*sigma**2))
+            A_sum = jnp.where(normalize_sum, 1/g.sum(), 1.)
+            return A*A_norm*A_sum*g
+        g1 = gaussian(x, y, xmean, ymean, sigma, 1, normalize_prob, normalize_sum)
+        g2 = gaussian(x, y, xmean, ymean, sigma2, 1, normalize_prob, normalize_sum)
+        g = g1 - substraction_factor*g2
         E_norm = jnp.where(normalize_energy, jnp.sqrt(jnp.sum(g**2)), 1.)
-        A_sum = jnp.where(normalize_sum, g.sum(axis=(0,1), keepdims=True), 1.)
-        g = g/A_sum
+        # A_sum = jnp.where(normalize_sum, g.sum(axis=(0,1), keepdims=True), 1.)
+        # g = g/A_sum
         return A*g/E_norm
     
     # @staticmethod
@@ -2473,3 +2475,4 @@ class GaborGammaFourier(nn.Module):
         fx, fy = self.generate_dominion(kernel_shape, fs=self.fs)
         kernel = jax.vmap(self.gaussians, in_axes=(None,None,0,None,0,0), out_axes=-1)(fx, fy, params["freq"], 0., params["gamma"], params["theta"])
         return kernel
+
