@@ -1,0 +1,32 @@
+[project]
+name = "fxlayers"
+version = "0.0.1"
+description = "JaX/Flax implementation of functional layers."
+authors = [
+    { name = "Jorgvt", email = "vila_tronik@hotmail.com" }
+]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "jax",
+    "flax",
+    "optax",
+    "einops",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["fxlayers"]
+
+[tool.uv]
+managed = true
+dev-dependencies = [
+    "pytest",
+    "black",
+    "isort",
+    "ipykernel",
+]
